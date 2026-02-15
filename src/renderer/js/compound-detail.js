@@ -1383,6 +1383,36 @@ window.expandBaselineForm = expandBaselineForm;
 window.saveBaselineSettings = saveBaselineSettings;
 window.cancelBaselineEdit = cancelBaselineEdit;
 
+// Log Dose from detail page - opens modal pre-selected to current compound
+async function logDoseFromDetail() {
+  const compoundName = detailLibraryData ? detailLibraryData.name : (detailCompoundMeta ? detailCompoundMeta.compoundName : detailCompoundId);
+  if (!compoundName) return;
+
+  await refreshCompoundSelect();
+
+  // Find compound in the select list
+  const compoundMatch = allCompoundsForSelect.find(c => c.name === compoundName);
+  if (compoundMatch) {
+    const category = compoundMatch.isLibraryBlend ? 'blend' : (compoundMatch.category || 'all');
+    const catTab = document.querySelector('.cat-tab[data-category="' + category + '"]') ||
+                   document.querySelector('.cat-tab[data-category="all"]');
+    if (catTab) {
+      document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
+      catTab.classList.add('active');
+      currentLogCategory = catTab.dataset.category;
+      populateCompoundDropdown();
+    }
+    document.getElementById('compound-select').value = compoundMatch.id;
+    document.getElementById('compound-select').dispatchEvent(new Event('change'));
+  }
+
+  populateLocationDropdown(document.getElementById('dose-location'), '');
+  document.getElementById('dose-datetime').value = toLocalDatetimeValue();
+  document.getElementById('log-dose-modal').classList.remove('hidden');
+}
+
+window.logDoseFromDetail = logDoseFromDetail;
+
 // Expose to global scope for onclick handlers
 window.openCompoundDetail = openCompoundDetail;
 window.closeCompoundDetail = closeCompoundDetail;

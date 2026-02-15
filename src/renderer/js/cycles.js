@@ -1567,8 +1567,8 @@ function renderDashboardCycles() {
   // ── Dosing column ──
   if (dosingContainer) {
     if (runningCycles.length === 0) {
-      dosingContainer.innerHTML = '<div class="empty-state" style="padding:16px;text-align:center">' +
-        '<p style="font-size:13px;color:var(--text-muted)">No scheduled doses.</p></div>';
+      // Show quick dosing panel with Log Dose button + recent doses
+      renderQuickDosingPanel(dosingContainer);
       return;
     }
 
@@ -1662,6 +1662,42 @@ function renderDashboardCycles() {
 
     dosingContainer.innerHTML = dosingHtml;
   }
+}
+
+// ═══════════════════════════════════════
+// QUICK DOSING PANEL (no active cycles)
+// ═══════════════════════════════════════
+
+async function renderQuickDosingPanel(container) {
+  let html = '<div class="quick-dosing-panel">';
+  html += '<button class="btn btn-primary btn-small" onclick="openLogDoseModal()" style="width:100%;margin-bottom:10px">';
+  html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>';
+  html += ' Log Dose</button>';
+
+  // Show last 5 recent doses
+  const doses = await window.api.getDoses();
+  const recent = [...doses]
+    .sort((a, b) => new Date(b.administeredAt).getTime() - new Date(a.administeredAt).getTime())
+    .slice(0, 5);
+
+  if (recent.length > 0) {
+    html += '<div class="quick-dosing-label">Recent Doses</div>';
+    for (const dose of recent) {
+      const timeAgo = formatRelativeTime(new Date(dose.administeredAt).getTime());
+      html += '<div class="quick-dosing-row">';
+      html += '<span class="dose-log-dot" style="background:' + (dose.color || '#888') + '"></span>';
+      html += '<div class="dose-log-info">';
+      html += '<span class="dose-log-name">' + escapeHtml(dose.compoundName) + '</span>';
+      html += '<span class="dose-log-detail">' + dose.amount + ' ' + dose.unit + ' &middot; ' + timeAgo + '</span>';
+      html += '</div>';
+      html += '</div>';
+    }
+  } else {
+    html += '<p style="font-size:13px;color:var(--text-muted);text-align:center;margin-top:8px">No doses logged yet.</p>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 // ═══════════════════════════════════════

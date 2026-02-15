@@ -328,6 +328,32 @@ const COMPOUND_LIBRARY = [
     defaultUnit: 'mg',
     defaultRoute: 'subcutaneous',
     color: '#fff9c4'
+  },
+
+  // ═══════════════════════════════════════
+  // GLP-1 Agonists
+  // ═══════════════════════════════════════
+  {
+    id: 'semaglutide',
+    name: 'Semaglutide',
+    category: 'peptide',
+    halfLifeValue: 7,
+    halfLifeUnit: 'days',
+    halfLifeHours: 168,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#26c6da'
+  },
+  {
+    id: 'tirzepatide',
+    name: 'Tirzepatide',
+    category: 'peptide',
+    halfLifeValue: 5,
+    halfLifeUnit: 'days',
+    halfLifeHours: 120,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#4dd0e1'
   }
 ];
 

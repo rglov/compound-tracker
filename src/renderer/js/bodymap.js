@@ -91,8 +91,36 @@ function updateBodyMapHeatmap(doses) {
     return b.count7d - a.count7d;
   });
 
-  // Render table
+  // Status summary counts
+  const statusCounts = { prime: 0, ready: 0, resting: 0, avoid: 0 };
+  for (const site of sites) {
+    statusCounts[site.status]++;
+  }
+
   let html = '';
+
+  // Summary bar
+  html += '<div class="site-summary-bar">';
+  Object.entries(SITE_STATUS_CONFIG).forEach(function(entry) {
+    var key = entry[0];
+    var cfg = entry[1];
+    html += '<span class="site-summary-item" style="color:' + cfg.color + '">';
+    html += '<span class="site-summary-count">' + statusCounts[key] + '</span>';
+    html += '<span class="site-summary-label">' + cfg.label + '</span>';
+    html += '</span>';
+  });
+  html += '</div>';
+
+  // Group sites by body region
+  const REGION_ORDER = ['Upper Body', 'Core / Torso', 'Lower Body'];
+  const grouped = {};
+  for (const site of sites) {
+    const masterSite = masterLookup[site.siteId];
+    const group = masterSite ? masterSite.group : 'Other';
+    if (!grouped[group]) grouped[group] = [];
+    grouped[group].push(site);
+  }
+
   html += '<div class="site-rotation-header">';
   html += '<span class="site-rotation-col-name">Site Location</span>';
   html += '<span class="site-rotation-col-usage">7D</span>';
@@ -100,20 +128,36 @@ function updateBodyMapHeatmap(doses) {
   html += '</div>';
 
   html += '<div class="site-rotation-body">';
-  for (const site of sites) {
-    const cfg = SITE_STATUS_CONFIG[site.status];
-    const lastStr = site.daysSinceLast !== null
-      ? (site.daysSinceLast < 1 ? '<1d ago' : Math.floor(site.daysSinceLast) + 'd ago')
-      : '';
+  for (const regionName of REGION_ORDER) {
+    const regionSites = grouped[regionName];
+    if (!regionSites || regionSites.length === 0) continue;
 
-    html += '<div class="site-rotation-row">';
-    html += '<span class="site-rotation-col-name">' + site.label + ' <span class="injection-site-route">' + site.route + '</span></span>';
-    html += '<span class="site-rotation-col-usage">' + site.count7d + '</span>';
-    html += '<span class="site-rotation-col-status">';
-    html += '<span class="site-status-dot" style="background:' + cfg.color + '"></span>';
-    html += '<span class="site-status-label" style="color:' + cfg.color + '">' + cfg.label + '</span>';
+    const hasAvoid = regionSites.some(s => s.status === 'avoid');
+
+    html += '<div class="site-region-group">';
+    html += '<div class="site-region-header" onclick="toggleSiteRegion(this)">';
+    html += '<span class="site-region-name">' + regionName + ' <span class="site-region-count">(' + regionSites.length + ')</span>';
+    if (hasAvoid) html += ' <span class="site-region-avoid-badge">AVOID</span>';
     html += '</span>';
+    html += '<svg class="site-region-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>';
     html += '</div>';
+    html += '<div class="site-region-body">';
+
+    for (const site of regionSites) {
+      const cfg = SITE_STATUS_CONFIG[site.status];
+
+      html += '<div class="site-rotation-row">';
+      html += '<span class="site-rotation-col-name">' + site.label + ' <span class="injection-site-route">' + site.route + '</span></span>';
+      html += '<span class="site-rotation-col-usage">' + site.count7d + '</span>';
+      html += '<span class="site-rotation-col-status">';
+      html += '<span class="site-status-dot" style="background:' + cfg.color + '"></span>';
+      html += '<span class="site-status-label" style="color:' + cfg.color + '">' + cfg.label + '</span>';
+      html += '</span>';
+      html += '</div>';
+    }
+
+    html += '</div>'; // site-region-body
+    html += '</div>'; // site-region-group
   }
   html += '</div>';
 
@@ -131,6 +175,13 @@ function updateBodyMapHeatmap(doses) {
 
   container.innerHTML = html;
 }
+
+function toggleSiteRegion(headerEl) {
+  const group = headerEl.parentElement;
+  group.classList.toggle('collapsed');
+}
+
+window.toggleSiteRegion = toggleSiteRegion;
 
 // Keep these for backward compat (no longer needed for SVG body map)
 function getHeatColor(intensity) {

@@ -60,6 +60,9 @@
         </div>
       </div>
 
+      <!-- Dashboard Summary Stats -->
+      <div id="dashboard-stats-row" class="dashboard-stats-row"></div>
+
       <!-- TOP: Chart + Calendar side by side -->
       <div class="dashboard-top">
         <div class="dashboard-chart-wrap">
@@ -144,6 +147,8 @@
             <option value="peptide">Peptides</option>
             <option value="aas">AAS</option>
             <option value="hgh">HGH</option>
+            <option value="supplement">Supplements</option>
+            <option value="blend">Blends</option>
           </select>
         </div>
       </div>
@@ -186,7 +191,11 @@
             <button class="detail-range-btn" data-range="672">28d</button>
             <button class="detail-range-btn" data-range="1344">56d</button>
           </div>
-          <button class="btn btn-primary btn-small" id="detail-hypo-btn" onclick="showAddHypotheticalModal()">
+          <button class="btn btn-primary btn-small" id="detail-log-dose-btn" onclick="logDoseFromDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Log Dose
+          </button>
+          <button class="btn btn-secondary btn-small" id="detail-hypo-btn" onclick="showAddHypotheticalModal()">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
             Hypothetical
           </button>

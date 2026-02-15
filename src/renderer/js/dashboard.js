@@ -72,6 +72,9 @@ async function refreshDashboard() {
   // Calendar
   renderCalendar(doses);
 
+  // Dashboard stats row
+  renderDashboardStats(doses, summaries, now);
+
   // Dashboard cycles panel
   if (typeof renderDashboardCycles === 'function') {
     renderDashboardCycles();
@@ -103,6 +106,21 @@ function renderActiveCompounds(summaries) {
     const eta = clearTimeHours - timeSinceLastHours;
     const etaStr = eta > 0 ? `~${formatDuration(eta)}` : 'Cleared';
 
+    // Protocol frequency hint from LIBRARY_DATA
+    let protocolHint = '';
+    if (typeof findLibraryDataForCompound === 'function') {
+      const libData = findLibraryDataForCompound(null, s.compoundName);
+      if (libData && libData.protocols) {
+        const pText = libData.protocols.toLowerCase();
+        if (pText.includes('twice daily') || pText.includes('2x daily')) protocolHint = '2x Daily';
+        else if (pText.includes('daily') || pText.includes('every day')) protocolHint = 'Daily';
+        else if (pText.includes('every other day') || pText.includes('eod')) protocolHint = 'Every Other Day';
+        else if (pText.includes('3x weekly') || pText.includes('three times weekly')) protocolHint = '3x Weekly';
+        else if (pText.includes('twice weekly') || pText.includes('2x weekly') || pText.includes('two times weekly')) protocolHint = '2x Weekly';
+        else if (pText.includes('once weekly') || pText.includes('weekly')) protocolHint = 'Weekly';
+      }
+    }
+
     return `
       <div class="compound-card clickable" onclick="openCompoundDetail('${escapeHtml(s.compoundName)}')">
         <div class="compound-card-header">
@@ -133,6 +151,7 @@ function renderActiveCompounds(summaries) {
         <div class="level-bar-container">
           <div class="level-bar" style="width:${Math.min(s.percentRemaining, 100)}%; background:${s.color}"></div>
         </div>
+        ${protocolHint ? `<div class="compound-card-protocol">Protocol: ${protocolHint}</div>` : ''}
       </div>
     `;
   }).join('');
@@ -210,7 +229,7 @@ function renderCalendar(doses) {
   container.innerHTML = html;
 }
 
-function navigateCalendar(delta) {
+async function navigateCalendar(delta) {
   calendarMonth += delta;
   if (calendarMonth < 0) {
     calendarMonth = 11;
@@ -220,7 +239,8 @@ function navigateCalendar(delta) {
     calendarMonth = 0;
     calendarYear++;
   }
-  renderCalendar(); // re-render without dose data (will show calendar without dots until next refresh)
+  const doses = await window.api.getDoses();
+  renderCalendar(doses);
 }
 
 window.navigateCalendar = navigateCalendar;
@@ -235,6 +255,58 @@ function calendarClickDay(dateKey) {
 }
 
 window.calendarClickDay = calendarClickDay;
+
+function renderDashboardStats(doses, summaries, now) {
+  const container = document.getElementById('dashboard-stats-row');
+  if (!container) return;
+
+  // Active compounds count
+  const activeCount = summaries.length;
+
+  // Doses this week
+  const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
+  const dosesThisWeek = doses.filter(d => new Date(d.administeredAt).getTime() >= weekAgo && new Date(d.administeredAt).getTime() <= now).length;
+
+  // Active cycles
+  let activeCycleCount = 0;
+  if (typeof allCycles !== 'undefined') {
+    activeCycleCount = allCycles.filter(c => c.status === 'active').length;
+  }
+
+  // Upcoming doses in 24h (from cycle schedules)
+  let upcomingCount = 0;
+  if (typeof allCycles !== 'undefined') {
+    const in24h = now + 24 * 60 * 60 * 1000;
+    for (const cycle of allCycles) {
+      if (cycle.status !== 'active') continue;
+      if (cycle.scheduledDoses) {
+        for (const sd of cycle.scheduledDoses) {
+          if (sd.taken) continue;
+          const sdTime = new Date(sd.date).getTime();
+          if (sdTime >= now && sdTime <= in24h) upcomingCount++;
+        }
+      }
+    }
+  }
+
+  container.innerHTML = `
+    <div class="dash-stat-card">
+      <span class="dash-stat-value accent-green">${activeCount}</span>
+      <span class="dash-stat-label">Active Compounds</span>
+    </div>
+    <div class="dash-stat-card">
+      <span class="dash-stat-value">${dosesThisWeek}</span>
+      <span class="dash-stat-label">Doses This Week</span>
+    </div>
+    <div class="dash-stat-card">
+      <span class="dash-stat-value">${activeCycleCount}</span>
+      <span class="dash-stat-label">Active Cycles</span>
+    </div>
+    <div class="dash-stat-card">
+      <span class="dash-stat-value">${upcomingCount}</span>
+      <span class="dash-stat-label">Upcoming (24h)</span>
+    </div>`;
+}
 
 function cleanupDashboard() {
   if (dashboardRefreshTimer) {

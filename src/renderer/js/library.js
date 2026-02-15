@@ -974,6 +974,683 @@ Special Instructions:
     sideEffects: ['Acne', 'Aggression', 'Decreased Sperm Production', 'Elevated Blood Pressure', 'Gynecomastia', 'Hair Loss', 'ISR (Injection Site Reaction)', 'Increased Hematocrit', 'Irritability', 'Mood Changes', 'Oily Skin', 'Prostate Enlargement', 'Sleep Apnea', 'Testicular Atrophy', 'Water Retention']
   },
   {
+    name: 'Testosterone Enanthate',
+    halfLifeHours: 168,
+    type: 'Hormone',
+    goodWith: ['Oxandrolone (Anavar)', 'Nandrolone Decanoate (Deca)', 'Human Growth Hormone (HGH)'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Bone Health', 'Cardiovascular Health', 'Cognitive Enhancement', 'Energy Boost', 'Fat Loss', 'Mood Enhancement', 'Muscle Growth'],
+    tags: ['Bones', 'Energy', 'Mood', 'Muscles', 'TRT'],
+    protocols: `Standard TRT Protocol:
+
+IM (Intramuscular):
+• 100-200 mg once weekly (most common)
+• 50-100 mg twice weekly (more stable levels)
+• 80-100 mg every 5 days
+
+Blast/Cycle Dosing:
+• 300-500 mg per week for 12-16 weeks (intermediate)
+• Split into 2 injections per week for stable levels
+
+Injection Sites:
+• Glutes, thighs, deltoids
+• Rotate injection sites
+
+Important Monitoring:
+• Blood work every 6-8 weeks initially
+• Monitor: Total T, free T, estradiol, hematocrit, PSA, lipids
+• May require AI if estradiol elevated
+• May require HCG for fertility preservation`,
+    notes: 'Enanthate ester provides sustained release over ~7 days. Most commonly prescribed testosterone ester outside the US. Very similar pharmacokinetics to Cypionate.',
+    sideEffects: ['Acne', 'Aggression', 'Decreased Sperm Production', 'Elevated Blood Pressure', 'Gynecomastia', 'Hair Loss', 'ISR (Injection Site Reaction)', 'Increased Hematocrit', 'Mood Changes', 'Oily Skin', 'Testicular Atrophy', 'Water Retention']
+  },
+  {
+    name: 'Testosterone Propionate',
+    halfLifeHours: 48,
+    type: 'Hormone',
+    goodWith: ['Masteron Propionate', 'Trenbolone Acetate'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Energy Boost', 'Fat Loss', 'Mood Enhancement', 'Muscle Growth'],
+    tags: ['Energy', 'Muscles', 'TRT'],
+    protocols: `Short Ester Protocol:
+
+IM (Intramuscular):
+• 25-50 mg every other day (TRT)
+• 50-100 mg every other day (cycle)
+• Must inject frequently due to short half-life (~2 days)
+
+Advantages:
+• Faster onset and clearance
+• Less water retention vs longer esters
+• Better for short cycles or competition prep
+• Clears system faster for PCT
+
+Injection Notes:
+• Known for more PIP (post-injection pain) vs other esters
+• Smaller gauge needles (25-27g) recommended
+• Rotate injection sites frequently`,
+    notes: 'Shortest commonly used testosterone ester. Faster clearance makes it preferred for competition prep and short cycles. More frequent injections required.',
+    sideEffects: ['Acne', 'Elevated Blood Pressure', 'Gynecomastia', 'Hair Loss', 'ISR (Injection Site Reaction)', 'Increased Hematocrit', 'Mood Changes', 'Oily Skin', 'Post-Injection Pain', 'Water Retention']
+  },
+  {
+    name: 'Testosterone Undecanoate',
+    halfLifeHours: 504,
+    type: 'Hormone',
+    goodWith: [],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Bone Health', 'Energy Boost', 'Mood Enhancement', 'Muscle Growth'],
+    tags: ['Bones', 'Energy', 'Mood', 'Muscles', 'TRT'],
+    protocols: `Long-Acting TRT Protocol:
+
+IM (Intramuscular) - Nebido/Aveed:
+• 750-1000 mg every 10-14 weeks (clinical protocol)
+• First two injections 6 weeks apart, then every 10-14 weeks
+• Administered by healthcare provider
+
+Oral - Jatenzo:
+• 158-396 mg twice daily with food
+• Adjust based on blood levels
+
+Advantages:
+• Very infrequent injections
+• Stable blood levels once established
+• Good for patients who prefer fewer injections
+
+Monitoring:
+• Trough levels before next injection
+• Standard TRT blood panels`,
+    notes: 'Longest-acting testosterone ester. Brand names: Nebido (IM), Aveed (IM), Jatenzo (oral). 21-day half-life allows very infrequent dosing.',
+    sideEffects: ['Acne', 'Elevated Blood Pressure', 'Gynecomastia', 'Hair Loss', 'Increased Hematocrit', 'Mood Changes', 'Oily Skin', 'Pulmonary Oil Microembolism', 'Water Retention']
+  },
+  {
+    name: 'Trenbolone Acetate',
+    halfLifeHours: 24,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Propionate'],
+    notGoodWith: ['Nandrolone Decanoate (Deca)', 'Nandrolone Phenylpropionate (NPP)'],
+    benefits: ['Body Composition', 'Fat Loss', 'Muscle Growth', 'Recovery'],
+    tags: ['Muscles', 'Weight Loss'],
+    protocols: `Cycle Protocol (Advanced Users Only):
+
+IM (Intramuscular):
+• 50-75 mg every other day (beginner tren dose)
+• 75-100 mg every other day (intermediate)
+• Must always run with a testosterone base
+• Typical cycle length: 8-10 weeks
+
+Important Warnings:
+• NOT for beginners - powerful compound with significant side effects
+• Strong 19-nor compound - suppressive to natural testosterone
+• Can cause severe insomnia, night sweats, and cardiovascular strain
+• Monitor blood pressure and cardiovascular markers closely
+• Tren cough (brief coughing fit after injection) is common
+
+Post Cycle:
+• Extended PCT needed due to 19-nor metabolites
+• Allow adequate time off between cycles`,
+    notes: 'One of the most potent anabolic steroids. 5x more anabolic than testosterone. Short acetate ester allows quick clearance if side effects occur. Not for beginners.',
+    sideEffects: ['Aggression', 'Anxiety', 'Cardiovascular Strain', 'Elevated Blood Pressure', 'Hair Loss', 'Increased Sweating', 'Insomnia', 'Night Sweats', 'Oily Skin', 'Reduced Cardio Capacity', 'Tren Cough']
+  },
+  {
+    name: 'Trenbolone Enanthate',
+    halfLifeHours: 120,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Enanthate'],
+    notGoodWith: ['Nandrolone Decanoate (Deca)', 'Nandrolone Phenylpropionate (NPP)'],
+    benefits: ['Body Composition', 'Fat Loss', 'Muscle Growth', 'Recovery'],
+    tags: ['Muscles', 'Weight Loss'],
+    protocols: `Cycle Protocol (Advanced Users Only):
+
+IM (Intramuscular):
+• 200-400 mg per week (split into 2 injections)
+• Must always run with a testosterone base
+• Typical cycle length: 10-12 weeks
+
+Advantages vs Acetate:
+• Less frequent injections (2x/week vs EOD)
+• Same compound, just longer ester
+
+Important Warnings:
+• Same side effect profile as Trenbolone Acetate
+• Takes longer to clear system if sides are intolerable
+• Strong 19-nor - very suppressive
+• Monitor cardiovascular health closely`,
+    notes: 'Long ester version of Trenbolone. Less frequent injections but takes longer to clear if side effects occur. Same potency as Acetate version.',
+    sideEffects: ['Aggression', 'Anxiety', 'Cardiovascular Strain', 'Elevated Blood Pressure', 'Hair Loss', 'Increased Sweating', 'Insomnia', 'Night Sweats', 'Oily Skin', 'Reduced Cardio Capacity', 'Tren Cough']
+  },
+  {
+    name: 'Nandrolone Decanoate (Deca)',
+    halfLifeHours: 144,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Enanthate'],
+    notGoodWith: ['Trenbolone Acetate', 'Trenbolone Enanthate'],
+    benefits: ['Bone Health', 'Joint Health', 'Muscle Growth', 'Pain Relief', 'Recovery'],
+    tags: ['Bones', 'Healing', 'Muscles'],
+    protocols: `Cycle Protocol:
+
+IM (Intramuscular):
+• 200-400 mg per week for therapeutic/joint relief
+• 300-600 mg per week for muscle building (12-16 weeks)
+• Always run with testosterone at equal or higher dose
+• Typical cycle: 12-16 weeks (long ester needs time)
+
+Joint Relief Protocol:
+• 100-200 mg per week provides significant joint relief
+• Can be used at low dose alongside TRT
+
+Important Warnings:
+• 19-nor compound with very long detection time
+• Deca Dick (erectile dysfunction) common without adequate testosterone
+• Run testosterone at higher dose than Deca
+• Extended PCT needed - metabolites detectable for 18+ months
+• Progesterone-related side effects possible`,
+    notes: 'Popular for joint relief and mass building. Long-acting ester (6-day half-life). Known for "Deca Dick" if run without adequate testosterone base. Very long detection time.',
+    sideEffects: ['Bloating', 'Decreased Libido', 'Elevated Blood Pressure', 'Erectile Dysfunction', 'Gynecomastia', 'Hair Loss', 'Increased Appetite', 'Mood Changes', 'Progestin Effects', 'Water Retention']
+  },
+  {
+    name: 'Nandrolone Phenylpropionate (NPP)',
+    halfLifeHours: 36,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Propionate'],
+    notGoodWith: ['Trenbolone Acetate', 'Trenbolone Enanthate'],
+    benefits: ['Bone Health', 'Joint Health', 'Muscle Growth', 'Pain Relief', 'Recovery'],
+    tags: ['Bones', 'Healing', 'Muscles'],
+    protocols: `Cycle Protocol:
+
+IM (Intramuscular):
+• 100-150 mg every other day (300-525 mg/week)
+• Always run with testosterone
+• Typical cycle: 8-12 weeks (shorter than Deca due to faster ester)
+
+Advantages vs Deca:
+• Faster acting - feel effects sooner
+• Clears system faster if side effects occur
+• Shorter detection time
+• Better for shorter cycles
+
+Important Warnings:
+• Same compound as Deca, just shorter ester
+• Still a 19-nor - suppressive to natural testosterone
+• Run testosterone at higher dose than NPP`,
+    notes: 'Short ester version of Nandrolone. Same compound as Deca but with faster onset and clearance. Better for shorter cycles and if side effects need to clear quickly.',
+    sideEffects: ['Bloating', 'Decreased Libido', 'Elevated Blood Pressure', 'Erectile Dysfunction', 'Gynecomastia', 'Hair Loss', 'Mood Changes', 'Water Retention']
+  },
+  {
+    name: 'Boldenone Undecylenate (EQ)',
+    halfLifeHours: 336,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Enanthate'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Cardiovascular Health', 'Muscle Growth', 'Recovery'],
+    tags: ['Muscles'],
+    protocols: `Cycle Protocol:
+
+IM (Intramuscular):
+• 300-600 mg per week (14-20 week cycles)
+• Very long ester - needs extended cycle to see full effects
+• Always run with testosterone base
+• Takes 4-6 weeks to reach stable blood levels
+
+Key Effects:
+• Increases red blood cell production (improved endurance)
+• Lean, quality muscle gains
+• Can act as a mild AI (lowers estrogen)
+• Appetite increase is common
+
+Important Warnings:
+• May crash estrogen if testosterone dose is not adequate
+• Causes elevated hematocrit - monitor blood work
+• Very long detection time
+• Increased anxiety in some users`,
+    notes: 'Originally a veterinary steroid (Equipoise). Very long half-life (14 days) requires extended cycles. Known for lean gains, increased vascularity, and appetite stimulation.',
+    sideEffects: ['Acne', 'Anxiety', 'Elevated Blood Pressure', 'Hair Loss', 'Increased Appetite', 'Increased Hematocrit', 'Oily Skin']
+  },
+  {
+    name: 'Masteron Propionate',
+    halfLifeHours: 24,
+    type: 'Hormone',
+    goodWith: ['Testosterone Propionate', 'Trenbolone Acetate'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Fat Loss', 'Mood Enhancement', 'Muscle Growth'],
+    tags: ['Muscles', 'Weight Loss'],
+    protocols: `Cycle Protocol:
+
+IM (Intramuscular):
+• 300-500 mg per week (100 mg EOD typical)
+• Often used in cutting cycles
+• Best results at lower body fat percentages (<15%)
+• Typical cycle: 8-10 weeks
+
+Key Effects:
+• Anti-estrogenic properties (DHT derivative)
+• Hardening and drying effect on physique
+• Mild strength increase
+• Best cosmetic effects at lower body fat
+
+Important Notes:
+• Not a mass builder - best for cutting/recomp
+• DHT derivative - significant hair loss risk
+• Anti-estrogenic effect can reduce need for AI
+• Originally developed as breast cancer treatment`,
+    notes: 'DHT derivative with anti-estrogenic properties. Best for cutting and competition prep. Cosmetic effects most visible at lower body fat. Short propionate ester requires frequent injections.',
+    sideEffects: ['Acne', 'Aggression', 'Hair Loss', 'ISR (Injection Site Reaction)', 'Oily Skin', 'Post-Injection Pain', 'Prostate Enlargement']
+  },
+  {
+    name: 'Masteron Enanthate',
+    halfLifeHours: 120,
+    type: 'Hormone',
+    goodWith: ['Testosterone Enanthate', 'Testosterone Cypionate'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Fat Loss', 'Mood Enhancement', 'Muscle Growth'],
+    tags: ['Muscles', 'Weight Loss'],
+    protocols: `Cycle Protocol:
+
+IM (Intramuscular):
+• 400-600 mg per week (split into 2 injections)
+• Often used in cutting cycles
+• Typical cycle: 10-12 weeks
+
+Advantages vs Propionate:
+• Less frequent injections (2x/week vs EOD)
+• Same compound, longer ester
+• Pairs well with longer ester testosterone
+
+Same Profile as Masteron Propionate:
+• Anti-estrogenic, hardening effect
+• Best at lower body fat percentages
+• DHT derivative - hair loss risk`,
+    notes: 'Long ester version of Masteron (Drostanolone). Less frequent injections than Propionate version. Same effects profile.',
+    sideEffects: ['Acne', 'Aggression', 'Hair Loss', 'Oily Skin', 'Prostate Enlargement']
+  },
+  {
+    name: 'Oxandrolone (Anavar)',
+    halfLifeHours: 9,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Enanthate'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Fat Loss', 'Muscle Growth', 'Recovery'],
+    tags: ['Muscles', 'Weight Loss'],
+    protocols: `Oral Protocol:
+
+Males:
+• 40-80 mg daily (split into 2 doses, AM/PM)
+• 6-8 week cycles
+• Always run with testosterone base
+
+Females:
+• 5-20 mg daily
+• 6-8 week cycles
+• One of few AAS considered relatively safe for women
+
+Key Effects:
+• Mild but effective for lean gains and fat loss
+• Low aromatization (minimal estrogen conversion)
+• Increases strength disproportionate to mass gains
+• Enhances muscle hardness and vascularity
+
+Important Warnings:
+• Oral - hepatotoxic (liver toxic)
+• Significant impact on lipid profile (lowers HDL)
+• Suppresses natural testosterone production
+• Monitor liver values and lipids`,
+    notes: 'One of the mildest oral AAS. Popular for cutting cycles and female use. Relatively low androgenic effects but still suppressive. Known for strength gains without excessive mass.',
+    sideEffects: ['Acne', 'Hair Loss', 'Headache', 'Liver Toxicity', 'Lipid Changes', 'Nausea', 'Suppressed Testosterone']
+  },
+  {
+    name: 'Stanozolol Oral (Winstrol)',
+    halfLifeHours: 9,
+    type: 'Hormone',
+    goodWith: ['Testosterone Propionate', 'Masteron Propionate'],
+    notGoodWith: ['Nandrolone Decanoate (Deca)'],
+    benefits: ['Body Composition', 'Fat Loss', 'Muscle Growth'],
+    tags: ['Muscles', 'Weight Loss'],
+    protocols: `Oral Protocol:
+
+Males:
+• 25-50 mg daily for 6-8 weeks
+• Split dose AM/PM for more stable levels
+• Always run with testosterone base
+
+Females:
+• 5-10 mg daily for 4-6 weeks
+
+Key Effects:
+• Strong drying/hardening effect
+• Does not aromatize
+• Increases vascularity and muscle definition
+• Popular for competition prep
+
+Important Warnings:
+• Very hepatotoxic (liver toxic) - limit cycle length
+• Extremely harsh on joints (dries them out)
+• Significant negative impact on lipids
+• NOT recommended to stack with Deca (both are harsh on lipids)
+• Absolutely requires liver support supplements`,
+    notes: 'Powerful oral AAS for cutting. Known for joint dryness and liver toxicity. Very popular for competition prep. Available in both oral and injectable forms.',
+    sideEffects: ['Acne', 'Hair Loss', 'Joint Pain', 'Liver Toxicity', 'Lipid Changes', 'Tendon Damage']
+  },
+  {
+    name: 'Stanozolol Injectable (Winstrol)',
+    halfLifeHours: 24,
+    type: 'Hormone',
+    goodWith: ['Testosterone Propionate', 'Masteron Propionate'],
+    notGoodWith: ['Nandrolone Decanoate (Deca)'],
+    benefits: ['Body Composition', 'Fat Loss', 'Muscle Growth'],
+    tags: ['Muscles', 'Weight Loss'],
+    protocols: `Injectable Protocol:
+
+IM (Intramuscular):
+• 50 mg every other day (most common)
+• 50 mg daily for advanced users (short cycles only)
+• 6-8 week cycles maximum
+
+Advantages vs Oral:
+• Longer half-life (24h vs 9h)
+• Slightly less liver stress (still hepatotoxic)
+• More stable blood levels
+
+Important Warnings:
+• Water-based suspension - can be painful to inject
+• Still hepatotoxic even as injectable
+• Joint dryness and lipid impact same as oral version
+• Requires liver support`,
+    notes: 'Injectable version of Winstrol. Water-based suspension that can be painful. Slightly less hepatotoxic than oral but still requires monitoring.',
+    sideEffects: ['Acne', 'Hair Loss', 'ISR (Injection Site Reaction)', 'Joint Pain', 'Liver Toxicity', 'Lipid Changes', 'Post-Injection Pain', 'Tendon Damage']
+  },
+  {
+    name: 'Methandrostenolone (Dianabol)',
+    halfLifeHours: 4.5,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Enanthate'],
+    notGoodWith: [],
+    benefits: ['Muscle Growth', 'Recovery'],
+    tags: ['Muscles'],
+    protocols: `Oral Protocol:
+
+Males:
+• 20-50 mg daily for 4-6 weeks (kickstart)
+• Split into 2-3 doses throughout the day
+• Commonly used as cycle kickstart while waiting for long esters to saturate
+
+Kickstart Example:
+• Weeks 1-4: Dianabol 30-40 mg/day
+• Weeks 1-12: Testosterone Enanthate 500 mg/week
+
+Key Effects:
+• Rapid weight and strength gains
+• Significant water retention and bloating
+• Strong aromatization (high estrogen conversion)
+• Dramatic pumps in the gym
+
+Important Warnings:
+• Hepatotoxic - limit to 4-6 weeks
+• Very strong aromatization - AI often needed
+• Significant water retention
+• Blood pressure elevation common
+• Monitor liver values and estradiol`,
+    notes: 'Classic oral steroid. Known for rapid strength and mass gains with significant water retention. Best used as a cycle kickstart for 4-6 weeks.',
+    sideEffects: ['Acne', 'Bloating', 'Elevated Blood Pressure', 'Gynecomastia', 'Hair Loss', 'Liver Toxicity', 'Mood Changes', 'Water Retention']
+  },
+  {
+    name: 'Oxymetholone (Anadrol)',
+    halfLifeHours: 8,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Enanthate'],
+    notGoodWith: [],
+    benefits: ['Muscle Growth', 'Recovery'],
+    tags: ['Muscles'],
+    protocols: `Oral Protocol:
+
+Males:
+• 25-50 mg daily for 4-6 weeks
+• 50-100 mg daily for experienced users (4 weeks max)
+• Often used as cycle kickstart
+• Single daily dose (long enough half-life)
+
+Key Effects:
+• Most potent oral steroid for mass gain
+• Dramatic strength increases
+• Significant water retention
+• Can increase appetite substantially
+
+Important Warnings:
+• VERY hepatotoxic - strict time limits
+• Does not aromatize but causes estrogenic sides through other mechanisms
+• Can cause severe headaches and nosebleeds (blood pressure)
+• Absolutely requires liver support
+• Not recommended for beginners`,
+    notes: 'One of the strongest oral steroids. FDA-approved for anemia treatment. Causes estrogenic side effects despite not aromatizing (possibly through progestin activity).',
+    sideEffects: ['Acne', 'Bloating', 'Elevated Blood Pressure', 'Gynecomastia', 'Hair Loss', 'Headache', 'Liver Toxicity', 'Nausea', 'Nosebleeds', 'Water Retention']
+  },
+  {
+    name: 'Primobolan Enanthate',
+    halfLifeHours: 240,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Testosterone Enanthate', 'Oxandrolone (Anavar)'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Fat Loss', 'Immune Support', 'Muscle Growth'],
+    tags: ['Immune system', 'Muscles'],
+    protocols: `Cycle Protocol:
+
+IM (Intramuscular):
+• 400-800 mg per week for males (12-16 weeks)
+• 50-100 mg per week for females
+• Always run with testosterone base (males)
+• Long ester - needs extended cycles
+
+Key Effects:
+• Mild but high-quality lean muscle gains
+• Does not aromatize
+• Immune system support
+• Very low side effect profile
+• Good for cutting and recomposition
+
+Important Notes:
+• One of the mildest injectable AAS
+• High cost per mg compared to other compounds
+• Often counterfeited - verify source
+• Arnold's reported favorite compound
+• DHT derivative with low androgenic effects`,
+    notes: 'Mild injectable AAS with excellent safety profile. Does not aromatize. Known as one of the safest injectable steroids. High cost limits availability.',
+    sideEffects: ['Acne', 'Hair Loss', 'ISR (Injection Site Reaction)', 'Lipid Changes', 'Suppressed Testosterone']
+  },
+  {
+    name: 'Human Growth Hormone (HGH)',
+    halfLifeHours: 3.8,
+    type: 'Hormone',
+    goodWith: ['Testosterone Cypionate', 'Ipamorelin', 'CJC-1295'],
+    notGoodWith: [],
+    benefits: ['Anti-Aging', 'Body Composition', 'Bone Health', 'Cognitive Enhancement', 'Fat Loss', 'Joint Health', 'Longevity', 'Muscle Growth', 'Recovery', 'Skin Health', 'Sleep Improvement', 'Wound Healing'],
+    tags: ['Bones', 'Healing', 'Longevity', 'Muscles', 'Skin', 'Sleep', 'Weight Loss'],
+    protocols: `Protocol by Goal:
+
+Anti-Aging / General Wellness:
+SQ:
+• 1-2 IU daily
+• Inject before bed or first thing in morning
+• Can run indefinitely at low doses
+
+Fat Loss:
+SQ:
+• 2-4 IU daily
+• Split dose: AM (fasted) + pre-bed
+• Best results with consistent cardio
+
+Muscle Building (with AAS):
+SQ:
+• 4-8 IU daily
+• Split into 2-3 doses
+• Often combined with insulin (advanced - dangerous)
+
+Timing:
+• Morning fasted: Best for fat loss
+• Before bed: Mimics natural GH pulse
+• Split dosing: Most stable levels
+• Wait 30-60 min before eating after injection
+
+Important Warnings:
+• Can cause insulin resistance at higher doses
+• Carpal tunnel syndrome common initially
+• Water retention and joint pain common when starting
+• Start low and titrate up over weeks
+• Monitor IGF-1 and fasting glucose levels
+• Takes 3-6 months for full body composition effects`,
+    notes: 'Recombinant human growth hormone (somatropin). Effects are dose-dependent. Low doses for anti-aging, higher for body composition. Takes months for visible results.',
+    sideEffects: ['Carpal Tunnel Syndrome', 'Elevated Blood Sugar', 'Fluid Retention', 'Headache', 'Joint Pain', 'Muscle Pain', 'Numbness', 'Tingling', 'Water Retention']
+  },
+  {
+    name: 'PT-141 (Bremelanotide)',
+    halfLifeHours: 2,
+    type: 'Peptide',
+    goodWith: [],
+    notGoodWith: ['Melanotan 1'],
+    benefits: ['Mood Enhancement'],
+    tags: ['Mood'],
+    protocols: `Treatment: As needed (not for daily use)
+
+SQ:
+• 1-2 mg approximately 45-60 minutes before desired effect
+• Do not exceed 1 dose per 24 hours
+• Do not exceed 8 doses per month
+• Start with 0.5-1 mg to assess tolerance
+
+Important Warnings:
+• FDA-approved for hypoactive sexual desire disorder (HSDD) in women
+• Works on melanocortin receptors in the brain
+• Can cause significant nausea (most common side effect)
+• May cause temporary skin darkening
+• Blood pressure changes can occur
+• Not for use with uncontrolled hypertension`,
+    notes: 'FDA-approved as Vyleesi for HSDD in premenopausal women. Works centrally on melanocortin receptors. Different mechanism from PDE5 inhibitors.',
+    sideEffects: ['Elevated Blood Pressure', 'Facial Flushing', 'Headache', 'Nausea', 'Skin Darkening', 'Vomiting']
+  },
+  {
+    name: 'GHRP-2',
+    halfLifeHours: 0.417,
+    type: 'Peptide',
+    goodWith: ['CJC-1295', 'Ipamorelin'],
+    notGoodWith: [],
+    benefits: ['Fat Loss', 'Immune Support', 'Muscle Growth', 'Recovery', 'Sleep Improvement'],
+    tags: ['Muscles', 'Sleep', 'Weight Loss'],
+    protocols: `Treatment Length: 8-12 weeks on, 4 weeks off
+
+Timing: Wait 2-3 hours after eating, don't eat for 30 minutes after injection
+
+SQ:
+• 100-300 mcg 2-3 times daily
+• Most common: 200 mcg before bed
+• 100 mcg upon waking + 200 mcg before bed
+
+Stacking:
+• Best when paired with a GHRH (CJC-1295 no DAC)
+• GHRP + GHRH = synergistic GH release
+
+Important Notes:
+• Growth Hormone Releasing Peptide
+• Stronger GH release than Ipamorelin
+• Increases appetite more than Ipamorelin
+• Increases cortisol and prolactin slightly
+• Inject on empty stomach for best results`,
+    notes: 'Growth Hormone Releasing Peptide. More potent than GHRP-6 with fewer appetite-stimulating effects. Pairs well with GHRH peptides for synergistic effect.',
+    sideEffects: ['Increased Appetite', 'Increased Cortisol', 'Increased Prolactin', 'Numbness', 'Tingling', 'Water Retention']
+  },
+  {
+    name: 'GHRP-6',
+    halfLifeHours: 0.333,
+    type: 'Peptide',
+    goodWith: ['CJC-1295', 'Ipamorelin'],
+    notGoodWith: [],
+    benefits: ['Fat Loss', 'Immune Support', 'Muscle Growth', 'Recovery', 'Sleep Improvement'],
+    tags: ['Muscles', 'Sleep', 'Weight Loss'],
+    protocols: `Treatment Length: 8-12 weeks on, 4 weeks off
+
+Timing: Wait 2-3 hours after eating, don't eat for 30 minutes after injection
+
+SQ:
+• 100-300 mcg 2-3 times daily
+• Most common: 200 mcg before bed
+• Can use 100 mcg 3x daily (morning, post-workout, before bed)
+
+Stacking:
+• Best when paired with a GHRH (CJC-1295 no DAC)
+• GHRP + GHRH = synergistic GH release
+
+Important Notes:
+• Growth Hormone Releasing Peptide
+• Causes significant hunger increase (more than GHRP-2)
+• Good for those wanting to increase appetite
+• Increases cortisol and prolactin
+• Inject on empty stomach`,
+    notes: 'Growth Hormone Releasing Peptide. Known for strong appetite stimulation. Good choice for those who want to increase food intake. Pairs with GHRH peptides.',
+    sideEffects: ['Increased Appetite', 'Increased Cortisol', 'Increased Prolactin', 'Numbness', 'Tingling', 'Water Retention']
+  },
+  {
+    name: 'Semaglutide',
+    halfLifeHours: 168,
+    type: 'Peptide',
+    goodWith: ['Tesofensine'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Cardiovascular Health', 'Diabetes Management', 'Fat Loss', 'Metabolism', 'Weight Loss'],
+    tags: ['Weight Loss'],
+    protocols: `Titration Schedule (Weekly SQ Injection):
+
+• Week 1-4: 0.25 mg once weekly
+• Week 5-8: 0.5 mg once weekly
+• Week 9-12: 1.0 mg once weekly
+• Week 13-16: 1.7 mg once weekly (if needed)
+• Week 17+: 2.4 mg once weekly (maximum dose)
+
+General Guidelines:
+• Inject subcutaneously in abdomen, thigh, or upper arm
+• Same day each week (can change day if 2+ days between)
+• Titrate slowly to minimize GI side effects
+• Stay on each dose 4 weeks before increasing
+• Many patients find effective dose at 1.0-1.7 mg
+
+Important Warnings:
+• GLP-1 receptor agonist
+• Nausea is very common, especially during titration
+• Eat smaller meals, avoid high-fat foods
+• Stay hydrated
+• Contraindicated with personal/family history of medullary thyroid cancer
+• Monitor for pancreatitis symptoms`,
+    notes: 'GLP-1 receptor agonist. Brand names: Ozempic (diabetes), Wegovy (weight loss). Average weight loss of 15% body weight in clinical trials. Weekly injection.',
+    sideEffects: ['Constipation', 'Diarrhea', 'Dizziness', 'Fatigue', 'Gallbladder Issues', 'Headache', 'Loss of Appetite', 'Nausea', 'Pancreatitis Risk', 'Stomach Upset', 'Vomiting']
+  },
+  {
+    name: 'Tirzepatide',
+    halfLifeHours: 120,
+    type: 'Peptide',
+    goodWith: ['Tesofensine'],
+    notGoodWith: [],
+    benefits: ['Body Composition', 'Cardiovascular Health', 'Diabetes Management', 'Fat Loss', 'Metabolism', 'Weight Loss'],
+    tags: ['Weight Loss'],
+    protocols: `Titration Schedule (Weekly SQ Injection):
+
+• Week 1-4: 2.5 mg once weekly
+• Week 5-8: 5 mg once weekly
+• Week 9-12: 7.5 mg once weekly
+• Week 13-16: 10 mg once weekly
+• Week 17-20: 12.5 mg once weekly (if needed)
+• Week 21+: 15 mg once weekly (maximum dose)
+
+General Guidelines:
+• Inject subcutaneously in abdomen, thigh, or upper arm
+• Same day each week
+• Titrate slowly to minimize GI side effects
+• Many patients find effective dose at 5-10 mg
+• Can be used alongside Tesofensine
+
+Important Warnings:
+• Dual GIP/GLP-1 receptor agonist
+• GI side effects common during titration
+• Contraindicated with personal/family history of medullary thyroid cancer
+• Monitor for pancreatitis symptoms
+• May affect absorption of oral medications`,
+    notes: 'Dual GIP/GLP-1 receptor agonist. Brand names: Mounjaro (diabetes), Zepbound (weight loss). More effective for weight loss than Semaglutide in head-to-head trials. Weekly injection.',
+    sideEffects: ['Constipation', 'Diarrhea', 'Dizziness', 'Fatigue', 'Gallbladder Issues', 'Hair Loss', 'Headache', 'Loss of Appetite', 'Nausea', 'Pancreatitis Risk', 'Stomach Upset', 'Vomiting']
+  },
+  {
     name: 'Glutathione',
     halfLifeHours: 0.5,
     type: 'Supplement',
@@ -1366,7 +2043,11 @@ async function renderLibrary() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               ${formatHalfLife(compound.halfLifeHours)}
             </span>
-            ${compound.benefits.length > 0 ? `<span class="library-meta-item library-benefit-count">${compound.benefits.length} benefits</span>` : ''}
+            ${compound.benefits.length > 0 ? `
+              <span class="library-meta-item library-benefit-pills">
+                ${compound.benefits.slice(0, 3).map(b => `<span class="library-benefit-pill">${escapeHtml(b)}</span>`).join('')}
+                ${compound.benefits.length > 3 ? `<span class="library-benefit-pill library-benefit-pill-more">+${compound.benefits.length - 3}</span>` : ''}
+              </span>` : ''}
           </div>
         </div>
 
@@ -1511,17 +2192,26 @@ function renderLibraryReadView(compound, typeConf) {
 
   // Good With / Not Good With
   if (compound.goodWith.length > 0 || compound.notGoodWith.length > 0) {
+    const makeCompatTag = (name, type) => {
+      const exists = LIBRARY_DATA.find(c => c.name === name);
+      const escapedName = escapeHtml(name).replace(/'/g, "\\'");
+      if (exists) {
+        return `<span class="library-compat-tag ${type} clickable" onclick="event.stopPropagation(); openLibraryCompoundDetail('${escapedName}')">${escapeHtml(name)}</span>`;
+      }
+      return `<span class="library-compat-tag ${type}">${escapeHtml(name)}</span>`;
+    };
+
     sections.push(`
       <div class="lib-detail-section">
         ${compound.goodWith.length > 0 ? `
           <h4 class="library-detail-label library-label-good">Good With</h4>
           <div class="library-compat-tags">
-            ${compound.goodWith.map(g => `<span class="library-compat-tag good">${escapeHtml(g)}</span>`).join('')}
+            ${compound.goodWith.map(g => makeCompatTag(g, 'good')).join('')}
           </div>` : ''}
         ${compound.notGoodWith.length > 0 ? `
           <h4 class="library-detail-label library-label-bad" style="margin-top:10px">Not Good With</h4>
           <div class="library-compat-tags">
-            ${compound.notGoodWith.map(n => `<span class="library-compat-tag bad">${escapeHtml(n)}</span>`).join('')}
+            ${compound.notGoodWith.map(n => makeCompatTag(n, 'bad')).join('')}
           </div>` : ''}
       </div>`);
   }
