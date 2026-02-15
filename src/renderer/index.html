@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline';">
+  <title>Compound Tracker</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <!-- Title bar drag region -->
+  <div id="titlebar">
+    <span class="titlebar-title">Compound Tracker</span>
+  </div>
+
+  <!-- Navigation -->
+<nav id="main-nav">
+     <button class="nav-btn active" data-view="dashboard">
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+       Dashboard
+     </button>
+     <button class="nav-btn" data-view="library">
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+       Compounds
+     </button>
+     <button class="nav-btn" data-view="history">
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+       History
+     </button>
+     <button class="nav-btn" data-view="cycles">
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+       Cycles
+     </button>
+     <button class="nav-btn" data-view="settings">
+       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+       Settings
+     </button>
+   </nav>
+
+  <!-- Views -->
+  <main id="app-content">
+    <!-- Dashboard View -->
+    <div id="view-dashboard" class="view active">
+      <div class="view-header">
+        <h2>Dashboard</h2>
+        <div class="dashboard-header-actions">
+          <button class="btn btn-icon" onclick="refreshDashboard()" title="Refresh">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+          </button>
+          <button class="btn btn-primary" onclick="openLogDoseModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Log Dose
+          </button>
+          <div class="time-range-btns">
+            <button class="range-btn" data-range="24">24h</button>
+            <button class="range-btn active" data-range="168">7d</button>
+            <button class="range-btn" data-range="720">30d</button>
+            <button class="range-btn" data-range="2160">90d</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOP: Chart + Calendar side by side -->
+      <div class="dashboard-top">
+        <div class="dashboard-chart-wrap">
+          <div class="chart-container chart-container-stacked">
+            <div class="chart-label">Hormones / AAS</div>
+            <canvas id="decay-chart-hormones"></canvas>
+          </div>
+          <div class="chart-container chart-container-stacked">
+            <div class="chart-label">Peptides</div>
+            <canvas id="decay-chart-peptides"></canvas>
+          </div>
+        </div>
+        <div class="dashboard-calendar-wrap">
+          <div id="dashboard-calendar" class="dashboard-calendar"></div>
+        </div>
+      </div>
+
+      <!-- BOTTOM: 4-column layout -->
+      <div class="dashboard-bottom-4col">
+        <div class="dashboard-col">
+          <h3 class="section-title">Compounds</h3>
+          <div id="active-compounds-grid" class="compounds-grid">
+            <div class="empty-state" id="dashboard-empty">
+              <p>No active compounds.</p>
+            </div>
+          </div>
+        </div>
+        <div class="dashboard-col">
+          <h3 class="section-title">Cycles</h3>
+          <div id="dashboard-cycles-panel"></div>
+        </div>
+        <div class="dashboard-col">
+          <h3 class="section-title">Dosing</h3>
+          <div id="dashboard-dosing-panel"></div>
+        </div>
+        <div class="dashboard-col">
+          <h3 class="section-title">Site Rotation</h3>
+          <div id="body-map-container" class="body-map-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Library View -->
+    <div id="view-library" class="view">
+      <div class="view-header">
+        <h2>Compounds</h2>
+        <span id="library-count" class="library-count-badge"></span>
+      </div>
+      <div class="library-toolbar">
+        <div class="library-status-filters">
+          <button class="status-pill active" data-status="all">All</button>
+          <button class="status-pill" data-status="active">Active</button>
+          <button class="status-pill" data-status="planned">Planned</button>
+          <button class="status-pill" data-status="reference">Reference</button>
+        </div>
+        <div class="library-search-wrap">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="library-search" placeholder="Search compounds, benefits, tags..." autocomplete="off">
+        </div>
+        <select id="library-type-filter">
+          <option value="all">All Types</option>
+          <option value="Peptide">Peptides</option>
+          <option value="Hormone">Hormones</option>
+          <option value="Supplement">Supplements</option>
+          <option value="Blend">Blends</option>
+        </select>
+        <select id="library-tag-filter">
+          <option value="all">All Tags</option>
+        </select>
+      </div>
+      <div id="library-grid" class="library-grid"></div>
+    </div>
+
+    <!-- History View -->
+    <div id="view-history" class="view">
+      <div class="view-header">
+        <h2>Dose History</h2>
+        <div class="history-filters">
+          <div id="history-date-filter-container"></div>
+          <select id="history-category-filter">
+            <option value="all">All Categories</option>
+            <option value="peptide">Peptides</option>
+            <option value="aas">AAS</option>
+            <option value="hgh">HGH</option>
+          </select>
+        </div>
+      </div>
+      <div id="history-table-container">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th data-sort="administeredAt">Date/Time</th>
+              <th data-sort="compoundName">Compound</th>
+              <th data-sort="category">Category</th>
+              <th data-sort="amount">Dose</th>
+              <th data-sort="route">Route</th>
+              <th data-sort="location">Site</th>
+              <th>Remaining</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+        <div class="empty-state hidden" id="history-empty">
+          <p>No doses logged yet.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Unified Compound Detail View -->
+    <div id="view-compound-detail" class="view">
+      <div class="view-header">
+        <div class="detail-header-left">
+          <button class="btn btn-secondary btn-small" id="detail-back-btn" onclick="closeCompoundDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            <span id="detail-back-label">Back</span>
+          </button>
+          <h2 id="detail-compound-name" class="detail-title"></h2>
+        </div>
+        <div class="detail-header-right">
+          <div class="detail-range-btns" id="detail-dose-controls">
+            <button class="detail-range-btn" data-range="168">7d</button>
+            <button class="detail-range-btn active" data-range="336">14d</button>
+            <button class="detail-range-btn" data-range="672">28d</button>
+            <button class="detail-range-btn" data-range="1344">56d</button>
+          </div>
+          <button class="btn btn-primary btn-small" id="detail-hypo-btn" onclick="showAddHypotheticalModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Hypothetical
+          </button>
+          <button class="btn btn-secondary btn-small" id="detail-edit-btn" onclick="toggleUnifiedEdit()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+        </div>
+      </div>
+
+      <!-- Dose Tracking Section (shown if compound has logged doses) -->
+      <div id="detail-dose-section">
+        <div id="detail-baseline-section" class="detail-baseline-section hidden"></div>
+        <div id="detail-stats" class="detail-stats-grid"></div>
+
+        <div class="detail-section">
+          <h3 class="detail-section-title">Level Forecast</h3>
+          <div class="detail-chart-container">
+            <canvas id="detail-chart"></canvas>
+          </div>
+        </div>
+
+        <div class="detail-columns">
+          <div class="detail-column">
+            <h3 class="detail-section-title">Recent Doses</h3>
+            <div id="detail-recent-doses" class="detail-doses-list"></div>
+            <div id="detail-hypothetical-doses"></div>
+          </div>
+          <div class="detail-column">
+            <div id="detail-reference-ranges"></div>
+          </div>
+        </div>
+
+        <div id="detail-bloodwork-section" class="hidden"></div>
+
+        <div id="detail-reconstitution-section" class="hidden"></div>
+
+        <div id="detail-inventory-section" class="hidden"></div>
+      </div>
+
+      <!-- Library Reference Section (shown if compound found in LIBRARY_DATA) -->
+      <div id="detail-library-section"></div>
+    </div>
+
+    <!-- Cycles List View -->
+    <div id="view-cycles" class="view">
+      <div class="view-header">
+        <h2>Cycle Planner</h2>
+        <button class="btn btn-primary" onclick="openCycleBuilder()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          New Cycle
+        </button>
+      </div>
+      <div id="cycles-grid" class="cycles-grid"></div>
+    </div>
+
+    <!-- Cycle Builder View -->
+    <div id="view-cycle-builder" class="view">
+      <div class="view-header">
+        <div class="detail-header-left">
+          <button class="btn btn-secondary btn-small" onclick="closeCycleBuilder()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back
+          </button>
+          <h2 id="builder-title" class="detail-title">New Cycle</h2>
+        </div>
+        <div class="detail-header-right" id="builder-actions">
+          <button class="btn btn-secondary btn-small" onclick="saveCycleAsPlan()">Save as Planned</button>
+          <button class="btn btn-primary btn-small" onclick="startCycleFromBuilder()">Start Cycle</button>
+        </div>
+      </div>
+      <div class="builder-body">
+        <div class="builder-info-section">
+          <div class="form-section">
+            <label class="form-label" for="builder-cycle-name">Cycle Name</label>
+            <input type="text" id="builder-cycle-name" placeholder="e.g. BPC-157 + TB-500 Healing Stack">
+          </div>
+          <div class="form-row">
+            <div class="form-section flex-1">
+              <label class="form-label" for="builder-cycle-start-date">Start Date</label>
+              <input type="date" id="builder-cycle-start-date" onchange="updateCycleStartDate(this.value)">
+            </div>
+            <div class="form-section flex-1">
+              <label class="form-label" for="builder-cycle-notes">Notes (optional)</label>
+              <input type="text" id="builder-cycle-notes" placeholder="e.g. Post-injury recovery protocol">
+            </div>
+          </div>
+          <div class="form-section" id="builder-tags-container"></div>
+        </div>
+        <div class="builder-entries-header">
+          <h3 class="detail-section-title">Compounds</h3>
+          <button class="btn btn-secondary btn-small" onclick="addBuilderEntry()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Compound
+          </button>
+        </div>
+        <div id="builder-entries"></div>
+        <div id="builder-timeline"></div>
+      </div>
+    </div>
+
+    <!-- Cycle Detail View -->
+    <div id="view-cycle-detail" class="view">
+      <div class="view-header">
+        <div class="detail-header-left">
+          <button class="btn btn-secondary btn-small" onclick="closeCycleDetail()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Cycles
+          </button>
+          <h2 id="cycle-detail-name" class="detail-title"></h2>
+        </div>
+        <div class="detail-header-right" id="cycle-detail-actions"></div>
+      </div>
+      <div id="cycle-detail-content"></div>
+    </div>
+
+    <!-- Compound Picker Modal (for cycle builder) -->
+    <div id="cycle-compound-picker" class="modal-overlay hidden">
+      <div class="modal" style="width:420px">
+        <div class="modal-header">
+          <h3>Add Compound to Cycle</h3>
+          <button class="modal-close" onclick="closeCycleCompoundPicker()">&times;</button>
+        </div>
+        <div class="form-section">
+          <label class="form-label" for="cycle-compound-select">Compound</label>
+          <select id="cycle-compound-select">
+            <option value="">Select a compound...</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeCycleCompoundPicker()">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="confirmAddCompound()">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings View -->
+    <div id="view-settings" class="view">
+      <div class="view-header">
+        <h2>Settings</h2>
+      </div>
+
+      <div class="settings-sections">
+        <!-- Custom Compounds -->
+        <section class="settings-section">
+          <h3>Custom Compounds</h3>
+          <p class="section-desc">Add your own compounds with custom half-lives.</p>
+          <form id="custom-compound-form" class="inline-form">
+            <input type="text" id="cc-name" placeholder="Compound name" required>
+            <select id="cc-category">
+              <option value="peptide">Peptide</option>
+              <option value="aas">AAS</option>
+              <option value="hgh">HGH</option>
+            </select>
+            <input type="number" id="cc-halflife" placeholder="Half-life" step="any" min="0" required>
+            <select id="cc-halflife-unit">
+              <option value="minutes">min</option>
+              <option value="hours">hrs</option>
+              <option value="days">days</option>
+            </select>
+            <select id="cc-unit">
+              <option value="mg">mg</option>
+              <option value="mcg">mcg</option>
+              <option value="IU">IU</option>
+            </select>
+            <select id="cc-route">
+              <option value="subcutaneous">SubQ</option>
+              <option value="intramuscular">IM</option>
+              <option value="oral">Oral</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Add</button>
+          </form>
+          <div id="custom-compounds-list" class="item-list"></div>
+        </section>
+
+        <!-- Custom Blends -->
+        <section class="settings-section">
+          <h3>Custom Blends</h3>
+          <p class="section-desc">Create blends that log multiple compounds at once.</p>
+          <form id="custom-blend-form" class="blend-form">
+            <div class="form-row">
+              <div class="form-section flex-1">
+                <input type="text" id="blend-name" placeholder="Blend name (e.g. BPC/TB Stack)" required>
+              </div>
+              <div class="form-section flex-half">
+                <select id="blend-category">
+                  <option value="peptide">Peptide</option>
+                  <option value="aas">AAS</option>
+                  <option value="hgh">HGH</option>
+                </select>
+              </div>
+            </div>
+            <div id="blend-components">
+              <div class="blend-component-row">
+                <select class="blend-compound-select">
+                  <option value="">Select compound...</option>
+                </select>
+                <input type="number" class="blend-dose" placeholder="Dose" step="any" min="0">
+                <span class="blend-unit-label">mg</span>
+                <button type="button" class="btn btn-small btn-remove-component" title="Remove" style="visibility:hidden;">X</button>
+              </div>
+            </div>
+            <button type="button" class="btn btn-secondary btn-small" id="add-blend-component">+ Add Component</button>
+            <button type="submit" class="btn btn-primary" style="margin-left:8px;">Create Blend</button>
+          </form>
+          <div id="custom-blends-list" class="item-list"></div>
+        </section>
+
+        <!-- Injection Sites -->
+        <section class="settings-section">
+          <h3>Injection Sites</h3>
+          <p class="section-desc">Choose which injection sites appear in dropdowns and the site rotation tracker.</p>
+          <div class="injection-sites-actions">
+            <button type="button" class="btn btn-secondary btn-small" id="sites-select-all">Select All</button>
+            <button type="button" class="btn btn-secondary btn-small" id="sites-select-none">Select None</button>
+          </div>
+          <div id="injection-sites-grid" class="injection-sites-grid"></div>
+        </section>
+
+        <!-- Data Management -->
+        <section class="settings-section">
+          <h3>Data Management</h3>
+          <div class="data-actions">
+            <button class="btn btn-secondary" id="export-data-btn">Export Data (JSON)</button>
+            <button class="btn btn-secondary" id="import-data-btn">Import Data</button>
+            <input type="file" id="import-file-input" accept=".json" class="hidden">
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <!-- Log Dose Modal -->
+  <div id="log-dose-modal" class="modal-overlay hidden">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3>Log a Dose</h3>
+        <button class="modal-close" onclick="closeLogDoseModal()">&times;</button>
+      </div>
+      <form id="dose-form" class="dose-form">
+        <div class="form-section">
+          <label class="form-label">Category</label>
+          <div class="category-tabs">
+            <button type="button" class="cat-tab active" data-category="all">All</button>
+            <button type="button" class="cat-tab" data-category="peptide">Peptides</button>
+            <button type="button" class="cat-tab" data-category="aas">AAS</button>
+            <button type="button" class="cat-tab" data-category="hgh">HGH</button>
+            <button type="button" class="cat-tab" data-category="supplement">Supplements</button>
+            <button type="button" class="cat-tab" data-category="blend">Blends</button>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label class="form-label" for="compound-select">Compound</label>
+          <select id="compound-select" required>
+            <option value="">Select a compound...</option>
+          </select>
+          <div id="compound-info" class="compound-info hidden"></div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-section flex-1">
+            <label class="form-label" for="dose-amount">Dose Amount</label>
+            <input type="number" id="dose-amount" step="any" min="0" required placeholder="e.g. 200">
+          </div>
+          <div class="form-section flex-half">
+            <label class="form-label" for="dose-unit">Unit</label>
+            <select id="dose-unit">
+              <option value="mg">mg</option>
+              <option value="mcg">mcg</option>
+              <option value="IU">IU</option>
+              <option value="ml">ml</option>
+            </select>
+          </div>
+          <div class="form-section flex-half">
+            <label class="form-label" for="dose-route">Route</label>
+            <select id="dose-route">
+              <option value="intramuscular">IM</option>
+              <option value="subcutaneous">SubQ</option>
+              <option value="oral">Oral</option>
+              <option value="intravenous">IV</option>
+              <option value="topical">Topical</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-section flex-1">
+            <label class="form-label" for="dose-location">Injection / Application Site</label>
+            <select id="dose-location">
+              <option value="">N/A</option>
+            </select>
+          </div>
+          <div class="form-section flex-1">
+            <label class="form-label" for="dose-datetime">Date & Time</label>
+            <input type="datetime-local" id="dose-datetime" required>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label class="form-label" for="dose-notes">Notes (optional)</label>
+          <input type="text" id="dose-notes" placeholder="e.g. Slight PIP, used 25g needle">
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeLogDoseModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Log Dose</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit Dose Modal -->
+  <div id="edit-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Edit Dose</h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+      <form id="edit-dose-form">
+        <input type="hidden" id="edit-dose-id">
+        <div class="form-section">
+          <label class="form-label">Compound</label>
+          <div id="edit-compound-name" class="edit-compound-display"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-section flex-1">
+            <label class="form-label" for="edit-amount">Dose Amount</label>
+            <input type="number" id="edit-amount" step="any" min="0" required>
+          </div>
+          <div class="form-section flex-half">
+            <label class="form-label" for="edit-unit">Unit</label>
+            <select id="edit-unit">
+              <option value="mg">mg</option>
+              <option value="mcg">mcg</option>
+              <option value="IU">IU</option>
+              <option value="ml">ml</option>
+            </select>
+          </div>
+          <div class="form-section flex-half">
+            <label class="form-label" for="edit-route">Route</label>
+            <select id="edit-route">
+              <option value="intramuscular">IM</option>
+              <option value="subcutaneous">SubQ</option>
+              <option value="oral">Oral</option>
+              <option value="intravenous">IV</option>
+              <option value="topical">Topical</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-section flex-1">
+            <label class="form-label" for="edit-location">Injection / Application Site</label>
+            <select id="edit-location">
+              <option value="">N/A</option>
+            </select>
+          </div>
+          <div class="form-section flex-1">
+            <label class="form-label" for="edit-datetime">Date & Time</label>
+            <input type="datetime-local" id="edit-datetime" required>
+          </div>
+        </div>
+        <div class="form-section">
+          <label class="form-label" for="edit-notes">Notes</label>
+          <input type="text" id="edit-notes">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Hypothetical Dose Modal -->
+  <div id="hypothetical-modal" class="modal-overlay hidden">
+    <div class="modal" style="width:400px">
+      <div class="modal-header">
+        <h3>Add Hypothetical Dose</h3>
+        <button class="modal-close" onclick="closeHypotheticalModal()">&times;</button>
+      </div>
+      <form id="hypo-form">
+        <div class="form-row">
+          <div class="form-section flex-1">
+            <label class="form-label" for="hypo-amount">Dose Amount</label>
+            <input type="number" id="hypo-amount" step="any" min="0" required placeholder="e.g. 200">
+          </div>
+          <div class="form-section" style="padding-top:28px">
+            <span id="hypo-unit-label" class="hypo-unit">mg</span>
+          </div>
+        </div>
+        <div class="form-section">
+          <label class="form-label" for="hypo-datetime">Date & Time</label>
+          <input type="datetime-local" id="hypo-datetime" required>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeHypotheticalModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add to Forecast</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast notification -->
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Libraries -->
+  <script src="lib/chart.umd.js"></script>
+  <script src="lib/luxon.js"></script>
+  <script src="lib/chartjs-adapter-luxon.umd.js"></script>
+
+  <!-- Scripts -->
+  <script src="js/utils.js"></script>
+  <script src="js/compounds.js"></script>
+  <script src="js/decay.js"></script>
+  <script src="js/chart.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/dose-logger.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/bodymap.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/compound-detail.js"></script>
+  <script src="js/cycles.js"></script>
+  <script src="js/custom-compound.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
