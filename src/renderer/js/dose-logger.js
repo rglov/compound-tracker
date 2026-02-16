@@ -305,6 +305,9 @@ function setupDoseForm() {
         };
         await window.api.addDose(dose);
         await deductFromInventory(component.compoundName, component.dose);
+        if (typeof deductSuppliesForDose === 'function') {
+          await deductSuppliesForDose(component.compoundName, route);
+        }
       }
       showToast(`Logged blend: ${blend.name} (${blend.components.length} components)`, 'success');
     } else {
@@ -332,11 +335,29 @@ function setupDoseForm() {
       // Library blends logged as single dose (they're pre-mixed)
       await window.api.addDose(dose);
       await deductFromInventory(compound.name, amount);
+      if (typeof deductSuppliesForDose === 'function') {
+        await deductSuppliesForDose(compound.name, route);
+      }
       showToast(`Logged ${amount} ${unit} of ${compound.name}`, 'success');
     }
 
     // Capture cycle dose info before closeLogDoseModal clears it
     const cycleDoseInfo = pendingCycleDose ? { ...pendingCycleDose } : null;
+
+    // Collect compound names + administeredAt for auto-matching
+    const loggedCompoundNames = [];
+    if (compoundVal.startsWith('blend:')) {
+      const blendId = compoundVal.replace('blend:', '');
+      const blend = allBlendsForSelect.find(b => b.id === blendId);
+      if (blend) {
+        for (const comp of blend.components) {
+          loggedCompoundNames.push(comp.compoundName);
+        }
+      }
+    } else {
+      const compound = allCompoundsForSelect.find(c => c.id === compoundVal);
+      if (compound) loggedCompoundNames.push(compound.name);
+    }
 
     // Reset form
     document.getElementById('dose-amount').value = '';
@@ -347,9 +368,14 @@ function setupDoseForm() {
     // Close modal
     closeLogDoseModal();
 
-    // If logging from a cycle, mark the scheduled dose as taken
+    // If logging from a cycle, mark the specific scheduled dose as taken
     if (cycleDoseInfo && window.markScheduledDoseTaken) {
       await window.markScheduledDoseTaken(cycleDoseInfo.cycleId, cycleDoseInfo.scheduledDoseId);
+    } else if (window.autoMatchCycleDoses) {
+      // Auto-match to pending cycle doses when logged outside cycle flow
+      for (const name of loggedCompoundNames) {
+        await window.autoMatchCycleDoses(name, administeredAt);
+      }
     }
 
     refreshDashboard();
@@ -361,12 +387,21 @@ async function deductFromInventory(compoundName, amount) {
   const items = inventory.filter(i => i.compoundName === compoundName && i.remainingAmount > 0);
   if (items.length === 0) return; // No inventory tracked, skip silently
 
-  // Deduct from first available item
-  const item = items[0];
-  let newRemaining = item.remainingAmount - amount;
-  if (newRemaining < 0) newRemaining = 0;
+  // Sort so in-use (cycle-allocated) inventory depletes first, then in-stock FIFO
+  items.sort((a, b) => {
+    const aScore = (a.status === 'in-use') ? 0 : 1;
+    const bScore = (b.status === 'in-use') ? 0 : 1;
+    return aScore - bScore;
+  });
 
-  await window.api.updateInventory(item.id, { remainingAmount: newRemaining });
+  let remaining = amount;
+  for (const item of items) {
+    if (remaining <= 0) break;
+    const deduct = Math.min(item.remainingAmount, remaining);
+    const newRemaining = item.remainingAmount - deduct;
+    await window.api.updateInventory(item.id, { remainingAmount: Math.max(0, newRemaining) });
+    remaining -= deduct;
+  }
 }
 
 // Expose to global scope for onclick handlers

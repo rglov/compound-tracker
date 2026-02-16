@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const Store = require('electron-store');
 
 const store = new Store({
@@ -13,7 +14,27 @@ const store = new Store({
     compoundSettings: {},
     bloodwork: [],
     inventory: [],
-    libraryOverrides: {}
+    libraryOverrides: {},
+    supplies: [],
+    orders: [],
+    supplyUsageConfig: {
+      globalDefaults: {
+        intramuscular: [
+          { category: 'needles', name: 'Drawing Needle', quantityPerDose: 1 },
+          { category: 'needles', name: 'Injection Needle', quantityPerDose: 1 },
+          { category: 'syringes', name: 'Syringe', quantityPerDose: 1 },
+          { category: 'alcohol-swabs', name: 'Alcohol Swab', quantityPerDose: 2 }
+        ],
+        subcutaneous: [
+          { category: 'syringes', name: 'Insulin Syringe', quantityPerDose: 1 },
+          { category: 'alcohol-swabs', name: 'Alcohol Swab', quantityPerDose: 2 }
+        ],
+        oral: [],
+        intravenous: [],
+        topical: []
+      },
+      compoundOverrides: {}
+    }
   }
 });
 
@@ -201,6 +222,103 @@ ipcMain.handle('store:delete-inventory', (_, id) => {
   return { success: true };
 });
 
+// Supplies
+ipcMain.handle('store:get-supplies', () => {
+  return store.get('supplies', []);
+});
+
+ipcMain.handle('store:save-supply', (_, entry) => {
+  const supplies = store.get('supplies', []);
+  const idx = supplies.findIndex(s => s.id === entry.id);
+  if (idx >= 0) {
+    supplies[idx] = entry;
+  } else {
+    supplies.push(entry);
+  }
+  store.set('supplies', supplies);
+  return { success: true };
+});
+
+ipcMain.handle('store:update-supply', (_, { id, changes }) => {
+  const supplies = store.get('supplies', []);
+  const idx = supplies.findIndex(s => s.id === id);
+  if (idx === -1) return { success: false, error: 'Not found' };
+  Object.assign(supplies[idx], changes);
+  store.set('supplies', supplies);
+  return { success: true };
+});
+
+ipcMain.handle('store:delete-supply', (_, id) => {
+  const supplies = store.get('supplies', []);
+  store.set('supplies', supplies.filter(s => s.id !== id));
+  return { success: true };
+});
+
+// Orders
+ipcMain.handle('store:get-orders', () => {
+  return store.get('orders', []);
+});
+
+ipcMain.handle('store:save-order', (_, entry) => {
+  const orders = store.get('orders', []);
+  const idx = orders.findIndex(o => o.id === entry.id);
+  if (idx >= 0) {
+    orders[idx] = entry;
+  } else {
+    orders.push(entry);
+  }
+  store.set('orders', orders);
+  return { success: true };
+});
+
+ipcMain.handle('store:delete-order', (_, id) => {
+  const orders = store.get('orders', []);
+  store.set('orders', orders.filter(o => o.id !== id));
+  return { success: true };
+});
+
+// Supply Usage Config
+ipcMain.handle('store:get-supply-usage-config', () => {
+  return store.get('supplyUsageConfig', { globalDefaults: {}, compoundOverrides: {} });
+});
+
+ipcMain.handle('store:save-supply-usage-config', (_, config) => {
+  store.set('supplyUsageConfig', config);
+  return { success: true };
+});
+
+// Test results file handling
+ipcMain.handle('pick-test-file', async () => {
+  const result = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
+    title: 'Select Test Results File',
+    filters: [
+      { name: 'Documents', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'] },
+      { name: 'All Files', extensions: ['*'] }
+    ],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+
+  const srcPath = result.filePaths[0];
+  const testResultsDir = path.join(app.getPath('userData'), 'test-results');
+  if (!fs.existsSync(testResultsDir)) fs.mkdirSync(testResultsDir, { recursive: true });
+
+  const ext = path.extname(srcPath);
+  const destName = Date.now() + '-' + path.basename(srcPath);
+  const destPath = path.join(testResultsDir, destName);
+  fs.copyFileSync(srcPath, destPath);
+
+  return { filePath: destPath, fileName: path.basename(srcPath) };
+});
+
+ipcMain.handle('open-test-file', (_, filePath) => {
+  if (filePath && fs.existsSync(filePath)) {
+    shell.openPath(filePath);
+    return true;
+  }
+  return false;
+});
+
 ipcMain.handle('store:export-data', () => {
   return {
     doses: store.get('doses', []),
@@ -212,6 +330,9 @@ ipcMain.handle('store:export-data', () => {
     bloodwork: store.get('bloodwork', []),
     inventory: store.get('inventory', []),
     libraryOverrides: store.get('libraryOverrides', {}),
+    supplies: store.get('supplies', []),
+    orders: store.get('orders', []),
+    supplyUsageConfig: store.get('supplyUsageConfig', { globalDefaults: {}, compoundOverrides: {} }),
     exportedAt: new Date().toISOString()
   };
 });
@@ -226,5 +347,8 @@ ipcMain.handle('store:import-data', (_, data) => {
   if (data.bloodwork) store.set('bloodwork', data.bloodwork);
   if (data.inventory) store.set('inventory', data.inventory);
   if (data.libraryOverrides) store.set('libraryOverrides', data.libraryOverrides);
+  if (data.supplies) store.set('supplies', data.supplies);
+  if (data.orders) store.set('orders', data.orders);
+  if (data.supplyUsageConfig) store.set('supplyUsageConfig', data.supplyUsageConfig);
   return { success: true };
 });

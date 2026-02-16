@@ -340,6 +340,37 @@ async function refreshUnifiedDetail() {
     ${escapeHtml(compoundName)}
     ${category ? `<span class="category-badge ${category}">${category}</span>` : ''}`;
 
+  // Render compound info bar
+  const infoBar = document.getElementById('detail-info-bar');
+  if (infoBar) {
+    if (hasLibrary) {
+      const typeConf = LIBRARY_TYPE_CONFIG[detailLibraryData.type] || LIBRARY_TYPE_CONFIG['Peptide'];
+      infoBar.innerHTML = `
+        <div class="lib-detail-info-row">
+          <div class="lib-detail-info-card">
+            <span class="lib-detail-info-label">Half-Life</span>
+            <span class="lib-detail-info-value">${formatHalfLife(detailLibraryData.halfLifeHours)}</span>
+          </div>
+          <div class="lib-detail-info-card">
+            <span class="lib-detail-info-label">Type</span>
+            <span class="lib-detail-info-value" style="color:${typeConf.color}">${detailLibraryData.type}</span>
+          </div>
+          <div class="lib-detail-info-card">
+            <span class="lib-detail-info-label">Benefits</span>
+            <span class="lib-detail-info-value">${detailLibraryData.benefits.length}</span>
+          </div>
+          <div class="lib-detail-info-card">
+            <span class="lib-detail-info-label">Side Effects</span>
+            <span class="lib-detail-info-value">${detailLibraryData.sideEffects.length}</span>
+          </div>
+        </div>`;
+      infoBar.classList.remove('hidden');
+    } else {
+      infoBar.innerHTML = '';
+      infoBar.classList.add('hidden');
+    }
+  }
+
   // Render baseline & target range section
   const displayUnit = sampleDose ? sampleDose.unit : 'mg';
   renderBaselineSection(compoundName, displayUnit);
@@ -349,28 +380,36 @@ async function refreshUnifiedDetail() {
   const compoundType = detailLibraryData?.type || '';
   renderBloodworkSection(compoundName, compoundType);
 
-  // Show/hide dose controls
+  // Show/hide dose controls and hypothetical button (show for library compounds too)
   const doseControls = document.getElementById('detail-dose-controls');
   const hypoBtn = document.getElementById('detail-hypo-btn');
-  if (doseControls) doseControls.style.display = hasDoses ? '' : 'none';
-  if (hypoBtn) hypoBtn.style.display = hasDoses ? '' : 'none';
+  if (doseControls) doseControls.style.display = (hasDoses || hasLibrary) ? '' : 'none';
+  if (hypoBtn) hypoBtn.style.display = (hasDoses || hasLibrary) ? '' : 'none';
 
   // Show/hide edit button (only if library data exists)
   const editBtn = document.getElementById('detail-edit-btn');
   if (editBtn) editBtn.style.display = hasLibrary ? '' : 'none';
 
-  // Dose section
+  // Dose section — always show for library compounds (chart, inventory, reconstitution live here)
   const doseSection = document.getElementById('detail-dose-section');
-  if (doseSection) doseSection.style.display = hasDoses ? '' : 'none';
+  if (doseSection) doseSection.style.display = (hasDoses || hasLibrary) ? '' : 'none';
 
   if (hasDoses) {
     // Delegate to existing dose rendering
     await refreshCompoundDetail();
+  } else if (hasLibrary) {
+    // Set compound meta for hypothetical dose creation from library data
+    detailCompoundMeta = {
+      compoundName: detailLibraryData.name,
+      color: compoundColor,
+      unit: 'mg',
+      halfLifeHours: detailLibraryData.halfLifeHours,
+      category: (detailLibraryData.type || '').toLowerCase(),
+      route: guessDefaultRoute(detailLibraryData)
+    };
+    // Show empty chart with half-life stats
+    renderEmptyForecast(detailLibraryData);
   }
-
-  // Reconstitution calculator (injectable compounds only)
-  const route = sampleDose?.route || (detailLibraryData ? guessDefaultRoute(detailLibraryData) : 'subcutaneous');
-  renderReconstitutionSection(compoundName, route);
 
   // Inventory section
   await loadInventory();
@@ -497,9 +536,75 @@ async function refreshCompoundDetail() {
   renderDetailStats(allCompoundDoses, now, halfLifeHours, unit);
 }
 
-function renderDetailChart(points, name, color, unit) {
+function renderEmptyForecast(libraryData) {
+  const halfLifeHours = libraryData.halfLifeHours || 24;
+
+  // Destroy any existing chart
+  if (detailChart) {
+    detailChart.destroy();
+    detailChart = null;
+  }
+
+  // Hide the chart canvas, show empty message instead
+  const canvas = document.getElementById('detail-chart');
+  if (canvas) canvas.style.display = 'none';
+
+  // Add empty overlay to chart container
+  const chartContainer = canvas?.parentElement;
+  if (chartContainer) {
+    let overlay = chartContainer.querySelector('.chart-empty-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.className = 'chart-empty-overlay';
+      chartContainer.appendChild(overlay);
+    }
+    overlay.innerHTML = '<p>No doses logged yet. Log a dose or add a hypothetical to see the level forecast.</p>';
+  }
+
+  // Show half-life stats
+  const statsEl = document.getElementById('detail-stats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="detail-stat-card">
+        <span class="detail-stat-label">Half-Life</span>
+        <span class="detail-stat-value">${formatHalfLife(halfLifeHours)}</span>
+      </div>
+      <div class="detail-stat-card">
+        <span class="detail-stat-label">50% at</span>
+        <span class="detail-stat-value">${formatDuration(halfLifeHours)}</span>
+      </div>
+      <div class="detail-stat-card">
+        <span class="detail-stat-label">25% at</span>
+        <span class="detail-stat-value">${formatDuration(halfLifeHours * 2)}</span>
+      </div>
+      <div class="detail-stat-card">
+        <span class="detail-stat-label">~Clears</span>
+        <span class="detail-stat-value">${formatDuration(halfLifeHours * 5)}</span>
+      </div>`;
+  }
+
+  // Clear dose-dependent sections
+  const recentDosesEl = document.getElementById('detail-recent-doses');
+  if (recentDosesEl) recentDosesEl.innerHTML = '<div class="detail-empty-msg">No doses logged yet.</div>';
+
+  const hypoEl = document.getElementById('detail-hypothetical-doses');
+  if (hypoEl) hypoEl.innerHTML = '';
+
+  const refEl = document.getElementById('detail-reference-ranges');
+  if (refEl) refEl.innerHTML = '';
+
+  const baselineEl = document.getElementById('detail-baseline-section');
+  if (baselineEl) baselineEl.classList.add('hidden');
+}
+
+function renderDetailChart(points, name, color, unit, isTheoretical) {
   const canvas = document.getElementById('detail-chart');
   if (!canvas) return;
+
+  // Restore canvas visibility (may have been hidden by renderEmptyForecast)
+  canvas.style.display = '';
+  const overlay = canvas.parentElement?.querySelector('.chart-empty-overlay');
+  if (overlay) overlay.remove();
 
   const Chart = window.Chart;
   const { DateTime } = window.luxon;
@@ -703,7 +808,11 @@ function renderDetailChart(points, name, color, unit) {
             date: { zone: DateTime.local().zoneName }
           },
           time: {
-            tooltipFormat: 'MMM dd, yyyy HH:mm'
+            unit: 'day',
+            displayFormats: {
+              day: 'MMM d'
+            },
+            tooltipFormat: 'MMM d, yyyy HH:mm'
           },
           grid: { color: 'rgba(255,255,255,0.05)' },
           ticks: {
@@ -996,113 +1105,6 @@ function initCompoundDetail() {
   setupHypotheticalForm();
 }
 
-function renderReconstitutionSection(compoundName, defaultRoute) {
-  const container = document.getElementById('detail-reconstitution-section');
-  if (!container) return;
-
-  // Only show for injectable compounds
-  if (defaultRoute === 'oral' || defaultRoute === 'topical') {
-    container.innerHTML = '';
-    container.classList.add('hidden');
-    return;
-  }
-
-  // Try to guess default dose from protocols
-  const libEntry = detailLibraryData;
-  let defaultDose = '';
-  if (libEntry && libEntry.protocols) {
-    const match = libEntry.protocols.match(/(\d+)\s*mcg/i);
-    if (match) defaultDose = match[1];
-  }
-
-  container.innerHTML = `
-    <div class="detail-section reconstitution-section">
-      <div class="recon-header" onclick="toggleReconstitution()">
-        <h3 class="detail-section-title">Reconstitution Calculator</h3>
-        <svg id="recon-chevron" class="recon-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-      </div>
-      <div id="recon-body" class="recon-body hidden">
-        <div class="recon-inputs">
-          <div class="recon-field">
-            <label class="form-label">Peptide in Vial (mg)</label>
-            <input type="number" id="recon-peptide-mg" step="any" min="0" placeholder="e.g. 5" oninput="updateReconResults()">
-          </div>
-          <div class="recon-field">
-            <label class="form-label">BAC Water Added (mL)</label>
-            <input type="number" id="recon-water-ml" step="any" min="0" placeholder="e.g. 2" oninput="updateReconResults()">
-          </div>
-          <div class="recon-field">
-            <label class="form-label">Desired Dose (mcg)</label>
-            <input type="number" id="recon-dose-mcg" step="any" min="0" placeholder="e.g. 250" value="${defaultDose}" oninput="updateReconResults()">
-          </div>
-        </div>
-        <div id="recon-results" class="recon-results"></div>
-      </div>
-    </div>`;
-  container.classList.remove('hidden');
-
-  // Trigger initial calc if we have a default dose
-  if (defaultDose) updateReconResults();
-}
-
-function toggleReconstitution() {
-  const body = document.getElementById('recon-body');
-  const chevron = document.getElementById('recon-chevron');
-  if (body) {
-    body.classList.toggle('hidden');
-    chevron?.classList.toggle('expanded');
-  }
-}
-
-function updateReconResults() {
-  const peptideMg = parseFloat(document.getElementById('recon-peptide-mg')?.value);
-  const waterMl = parseFloat(document.getElementById('recon-water-ml')?.value);
-  const doseMcg = parseFloat(document.getElementById('recon-dose-mcg')?.value);
-  const container = document.getElementById('recon-results');
-  if (!container) return;
-
-  if (!peptideMg || !waterMl || peptideMg <= 0 || waterMl <= 0) {
-    container.innerHTML = '<p class="recon-hint">Enter peptide amount and water volume to see results.</p>';
-    return;
-  }
-
-  const concentrationMcg = (peptideMg * 1000) / waterMl;
-  const concentrationMg = peptideMg / waterMl;
-
-  let results = `
-    <div class="recon-result-row">
-      <span class="recon-label">Concentration</span>
-      <span class="recon-value">${concentrationMcg.toLocaleString()} mcg/mL (${concentrationMg.toFixed(2)} mg/mL)</span>
-    </div>`;
-
-  if (doseMcg && doseMcg > 0) {
-    const doseVolume = doseMcg / concentrationMcg;
-    const units100 = doseVolume * 100;
-    const units50 = doseVolume * 50;
-    const dosesPerVial = Math.floor((peptideMg * 1000) / doseMcg);
-
-    results += `
-      <div class="recon-result-row">
-        <span class="recon-label">Dose Volume</span>
-        <span class="recon-value">${doseVolume.toFixed(3)} mL</span>
-      </div>
-      <div class="recon-result-row">
-        <span class="recon-label">100-unit Syringe</span>
-        <span class="recon-value accent-green">${units100.toFixed(1)} units</span>
-      </div>
-      <div class="recon-result-row">
-        <span class="recon-label">50-unit Syringe</span>
-        <span class="recon-value">${units50.toFixed(1)} units</span>
-      </div>
-      <div class="recon-result-row">
-        <span class="recon-label">Doses per Vial</span>
-        <span class="recon-value">${dosesPerVial}</span>
-      </div>`;
-  }
-
-  container.innerHTML = results;
-}
-
 // ═══════════════════════════════════════
 // INVENTORY TRACKING
 // ═══════════════════════════════════════
@@ -1117,185 +1119,107 @@ function getInventoryForCompound(compoundName) {
   return _inventoryData.filter(i => i.compoundName === compoundName);
 }
 
-function renderInventorySection(compoundName) {
+async function renderInventorySection(compoundName) {
   const container = document.getElementById('detail-inventory-section');
   if (!container) return;
 
-  const items = getInventoryForCompound(compoundName);
+  // Gather ALL order line items for this compound (source of truth)
+  const orders = await window.api.getOrders();
+  const allOrderItems = [];
+  for (const order of orders) {
+    for (const li of (order.lineItems || [])) {
+      if (li.type === 'compound' && li.compoundName === compoundName) {
+        allOrderItems.push({
+          ...li,
+          supplier: order.supplier || '',
+          orderDate: order.orderDate || '',
+          orderStatus: order.status || 'ordered'
+        });
+      }
+    }
+  }
 
-  let content = '';
-  if (items.length === 0) {
-    content = `
-      <div class="inv-empty">
-        <p>No inventory tracked.</p>
-        <button class="btn btn-secondary btn-small" onclick="showAddInventoryForm('${escapeHtml(compoundName)}')">Add Stock</button>
+  // Gather inventory store entries (for remainingAmount tracking on delivered items)
+  const invItems = getInventoryForCompound(compoundName);
+
+  if (allOrderItems.length === 0 && invItems.length === 0) {
+    container.innerHTML = `
+      <div class="detail-section">
+        <h3 class="detail-section-title">Inventory</h3>
+        <p class="text-muted" style="font-size:13px">No inventory tracked for this compound.</p>
       </div>`;
-  } else {
-    const cards = items.map(item => {
-      const pct = item.amountPerUnit > 0 ? Math.round((item.remainingAmount / (item.amountPerUnit * item.quantity)) * 100) : 0;
-      const isLow = item.remainingAmount < item.amountPerUnit * 0.2;
-      const expiryStr = item.expiryDate
-        ? new Date(item.expiryDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-        : '';
-      const isExpired = item.expiryDate && new Date(item.expiryDate) < new Date();
+    return;
+  }
 
-      return `
-        <div class="inv-card ${isLow ? 'low' : ''} ${isExpired ? 'expired' : ''}">
-          <div class="inv-card-header">
-            <span class="inv-card-qty">${item.quantity} ${item.format}${item.quantity !== 1 ? 's' : ''}</span>
-            ${item.concentration ? '<span class="inv-card-conc">' + item.concentration + ' mg/mL</span>' : ''}
-            <span class="inv-card-amount">${item.amountPerUnit} mg each</span>
-            ${expiryStr ? '<span class="inv-card-expiry ' + (isExpired ? 'expired' : '') + '">Exp: ' + expiryStr + '</span>' : ''}
-          </div>
-          <div class="inv-progress-bar">
+  // Group order items by mg per vial
+  const mgGroups = {};
+  for (const item of allOrderItems) {
+    const mg = item.amountPerUnit || 0;
+    if (!mgGroups[mg]) mgGroups[mg] = { orderItems: [], invItems: [] };
+    mgGroups[mg].orderItems.push(item);
+  }
+  // Attach inventory entries to matching mg groups for remainingAmount
+  for (const item of invItems) {
+    const mg = item.amountPerUnit || 0;
+    if (!mgGroups[mg]) mgGroups[mg] = { orderItems: [], invItems: [] };
+    mgGroups[mg].invItems.push(item);
+  }
+
+  let cardsHtml = '';
+  for (const [mg, group] of Object.entries(mgGroups)) {
+    const mgNum = parseFloat(mg);
+    // Use order items for vials/cost/tested/batch (source of truth)
+    const totalVials = group.orderItems.reduce((s, e) => s + (e.quantity || 0), 0);
+    const totalMg = mgNum * totalVials;
+    // Use inventory entries for remainingAmount if available
+    const totalRemaining = group.invItems.reduce((s, e) => s + (e.remainingAmount || 0), 0);
+    const hasStock = group.invItems.length > 0;
+
+    const allItems = [...group.orderItems, ...group.invItems];
+    const capColors = [...new Set(allItems.map(e => e.capColor).filter(c => c && c !== '#000000'))];
+    const capDots = capColors.map(c => `<span class="inv-cap-dot" style="background:${c}"></span>`).join('');
+
+    const batches = [...new Set(group.orderItems.map(e => e.batchNumber).filter(Boolean))];
+    const batchTags = batches.map(b => '<span class="inv-batch-tag">' + escapeHtml(b) + '</span>').join('');
+
+    const totalCost = group.orderItems.reduce((s, e) => s + (e.cost || 0), 0);
+    const costPerVial = totalVials > 0 && totalCost > 0 ? (totalCost / totalVials) : 0;
+
+    const pct = totalMg > 0 && hasStock ? Math.round((totalRemaining / totalMg) * 100) : 0;
+    const isLow = hasStock && pct < 20;
+
+    cardsHtml += `
+      <div class="compound-inv-card ${isLow ? 'low' : ''}">
+        <div class="compound-inv-card-header">
+          ${capDots}
+          <span class="compound-inv-card-name">${escapeHtml(compoundName)}</span>
+          ${group.orderItems.some(e => e.tested) ? '<span class="inv-tested-badge" title="Tested">&#10003;</span>' : ''}
+          ${batchTags}
+          ${isLow ? '<span class="inv-low-badge">Low</span>' : ''}
+        </div>
+        <div class="compound-inv-card-qty">
+          <span class="compound-inv-qty-value">${totalVials}</span>
+          <span class="compound-inv-qty-unit">vials</span>
+          ${mgNum ? '<span class="compound-inv-qty-x">x</span><span class="compound-inv-qty-value">' + mgNum + '</span><span class="compound-inv-qty-unit">mg</span>' : ''}
+        </div>
+        <div class="compound-inv-card-detail">
+          <span>${totalMg.toFixed(0)} mg total</span>
+          ${hasStock ? '<span>' + totalRemaining.toFixed(0) + ' mg remaining</span>' : ''}
+          ${totalCost > 0 ? '<span class="compound-inv-cost">$' + totalCost.toFixed(2) + (costPerVial > 0 ? ' ($' + costPerVial.toFixed(2) + '/vial)' : '') + '</span>' : ''}
+        </div>
+        ${hasStock ? `
+          <div class="inv-progress-bar-sm">
             <div class="inv-progress-fill ${isLow ? 'low' : ''}" style="width:${Math.min(pct, 100)}%"></div>
-          </div>
-          <div class="inv-card-footer">
-            <span class="inv-remaining">${item.remainingAmount.toFixed(1)} mg remaining</span>
-            ${isLow ? '<span class="inv-warning">Low Supply</span>' : ''}
-            <button class="btn btn-secondary btn-tiny" onclick="showAdjustInventory('${item.id}')">Adjust</button>
-            <button class="btn btn-danger btn-tiny" onclick="deleteInventoryItem('${item.id}')">Delete</button>
-          </div>
-          ${item.notes ? '<div class="inv-notes">' + escapeHtml(item.notes) + '</div>' : ''}
-        </div>`;
-    }).join('');
-
-    content = `
-      ${cards}
-      <button class="btn btn-secondary btn-small" style="margin-top:8px" onclick="showAddInventoryForm('${escapeHtml(compoundName)}')">Add Stock</button>`;
+          </div>` : ''}
+      </div>`;
   }
 
   container.innerHTML = `
     <div class="detail-section">
       <h3 class="detail-section-title">Inventory</h3>
-      ${content}
-      <div id="inv-form-container" class="hidden"></div>
+      <div class="compound-inv-cards-grid">${cardsHtml}</div>
     </div>`;
-  container.classList.remove('hidden');
 }
-
-function showAddInventoryForm(compoundName) {
-  const formContainer = document.getElementById('inv-form-container');
-  if (!formContainer) return;
-
-  formContainer.innerHTML = `
-    <div class="inv-form">
-      <div class="inv-form-row">
-        <div class="form-section flex-half">
-          <label class="form-label">Format</label>
-          <select id="inv-format">
-            <option value="vial">Vial</option>
-            <option value="bottle">Bottle</option>
-            <option value="box">Box</option>
-            <option value="pouch">Pouch</option>
-          </select>
-        </div>
-        <div class="form-section flex-half">
-          <label class="form-label">Quantity</label>
-          <input type="number" id="inv-quantity" min="1" value="1">
-        </div>
-        <div class="form-section flex-half">
-          <label class="form-label">Amount Each (mg)</label>
-          <input type="number" id="inv-amount-per-unit" step="any" placeholder="e.g. 5">
-        </div>
-        <div class="form-section flex-half">
-          <label class="form-label">Concentration (mg/mL)</label>
-          <input type="number" id="inv-concentration" step="any" placeholder="e.g. 200">
-        </div>
-      </div>
-      <div class="inv-form-row">
-        <div class="form-section flex-half">
-          <label class="form-label">Volume/Unit (mL)</label>
-          <input type="number" id="inv-volume" step="any" placeholder="e.g. 10">
-        </div>
-        <div class="form-section flex-half">
-          <label class="form-label">Expiry Date</label>
-          <input type="date" id="inv-expiry">
-        </div>
-        <div class="form-section flex-1">
-          <label class="form-label">Notes</label>
-          <input type="text" id="inv-notes" placeholder="e.g. supplier, lot #">
-        </div>
-      </div>
-      <div class="inv-form-actions">
-        <button class="btn btn-primary btn-small" onclick="submitInventory('${escapeHtml(compoundName)}')">Save</button>
-        <button class="btn btn-secondary btn-small" onclick="hideInventoryForm()">Cancel</button>
-      </div>
-    </div>`;
-  formContainer.classList.remove('hidden');
-}
-
-async function submitInventory(compoundName) {
-  const quantity = parseInt(document.getElementById('inv-quantity').value) || 1;
-  const amountPerUnit = parseFloat(document.getElementById('inv-amount-per-unit').value) || 0;
-
-  if (amountPerUnit <= 0) {
-    showToast('Please enter amount per unit', 'error');
-    return;
-  }
-
-  const entry = {
-    id: generateId(),
-    compoundName,
-    format: document.getElementById('inv-format').value,
-    quantity,
-    amountPerUnit,
-    concentration: parseFloat(document.getElementById('inv-concentration').value) || null,
-    volumePerUnit: parseFloat(document.getElementById('inv-volume').value) || null,
-    expiryDate: document.getElementById('inv-expiry').value || null,
-    remainingAmount: amountPerUnit * quantity,
-    notes: document.getElementById('inv-notes').value
-  };
-
-  await window.api.saveInventory(entry);
-  _inventoryData.push(entry);
-  showToast('Inventory added', 'success');
-  refreshUnifiedDetail();
-}
-
-function showAdjustInventory(id) {
-  const item = _inventoryData.find(i => i.id === id);
-  if (!item) return;
-
-  const newAmount = prompt('Adjust remaining amount for ' + item.compoundName + '\nCurrent: ' + item.remainingAmount.toFixed(1) + ' mg\nEnter new amount:', item.remainingAmount.toFixed(1));
-  if (newAmount === null) return;
-
-  const parsed = parseFloat(newAmount);
-  if (isNaN(parsed) || parsed < 0) {
-    showToast('Invalid amount', 'error');
-    return;
-  }
-
-  adjustInventory(id, parsed);
-}
-
-async function adjustInventory(id, newAmount) {
-  await window.api.updateInventory(id, { remainingAmount: newAmount });
-  const item = _inventoryData.find(i => i.id === id);
-  if (item) item.remainingAmount = newAmount;
-  showToast('Inventory adjusted', 'success');
-  refreshUnifiedDetail();
-}
-
-async function deleteInventoryItem(id) {
-  if (!confirm('Delete this inventory entry?')) return;
-  await window.api.deleteInventory(id);
-  _inventoryData = _inventoryData.filter(i => i.id !== id);
-  showToast('Inventory deleted', 'success');
-  refreshUnifiedDetail();
-}
-
-function hideInventoryForm() {
-  const formContainer = document.getElementById('inv-form-container');
-  if (formContainer) formContainer.classList.add('hidden');
-}
-
-// Expose inventory functions
-window.showAddInventoryForm = showAddInventoryForm;
-window.submitInventory = submitInventory;
-window.showAdjustInventory = showAdjustInventory;
-window.deleteInventoryItem = deleteInventoryItem;
-window.hideInventoryForm = hideInventoryForm;
 
 // ═══════════════════════════════════════
 // BASELINE & TARGET RANGE
@@ -1420,5 +1344,3 @@ window.showAddHypotheticalModal = showAddHypotheticalModal;
 window.closeHypotheticalModal = closeHypotheticalModal;
 window.removeHypotheticalDose = removeHypotheticalDose;
 window.toggleUnifiedEdit = toggleUnifiedEdit;
-window.toggleReconstitution = toggleReconstitution;
-window.updateReconResults = updateReconResults;

@@ -275,6 +275,14 @@ function renderBuilder() {
 
   renderBuilderEntries();
   renderBuilderTimeline();
+
+  // Render compound + supply requirements in builder
+  if (currentBuilderCycle) {
+    renderCycleCompoundRequirements(currentBuilderCycle, 'builder-compound-requirements');
+    if (typeof renderCycleSupplyRequirements === 'function') {
+      renderCycleSupplyRequirements(currentBuilderCycle, 'builder-supply-requirements');
+    }
+  }
 }
 
 function renderBuilderTagPicker() {
@@ -886,13 +894,16 @@ function getDoseTimesForDay(frequency) {
 // CYCLE DETAIL / TIMELINE VIEW
 // ═══════════════════════════════════════
 
-function openCycleDetail(cycleId) {
+async function openCycleDetail(cycleId) {
   currentDetailCycleId = cycleId;
 
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('view-cycle-detail').classList.add('active');
   document.querySelector('.nav-btn[data-view="cycles"]').classList.add('active');
+
+  // Reconcile: check dose history for any unmatched scheduled doses
+  await reconcileCycleDoses(cycleId);
 
   renderCycleDetail();
 }
@@ -952,6 +963,13 @@ function renderCycleDetail() {
   if (cycle.status === 'planned') {
     // Show entries summary + timeline preview
     content.innerHTML = detailTagsHtml + renderPlannedCycleContent(cycle);
+    // Async: fill compound + supply requirement placeholders
+    renderCycleCompoundRequirements(cycle, 'cycle-inline-compound-req');
+    if (typeof renderCycleSupplyRequirements === 'function') {
+      renderCycleSupplyRequirements(cycle, 'cycle-inline-supply-req');
+    }
+    const oldSupplyReqDiv = document.getElementById('cycle-detail-supply-requirements');
+    if (oldSupplyReqDiv) oldSupplyReqDiv.innerHTML = '';
     return;
   }
 
@@ -961,6 +979,9 @@ function renderCycleDetail() {
 
   content.innerHTML = `
     ${detailTagsHtml}
+    <div id="cycle-inline-compound-req"></div>
+    <div id="cycle-inline-supply-req"></div>
+    ${renderCycleCompoundSummary(cycle)}
     <div class="cycle-adherence-stats">
       <div class="detail-stat-card">
         <span class="detail-stat-label">Total Doses</span>
@@ -983,8 +1004,16 @@ function renderCycleDetail() {
         <span class="detail-stat-value" style="color:${pct >= 80 ? 'var(--accent-green)' : pct >= 50 ? 'var(--accent-gold)' : 'var(--accent-red)'}">${pct}%</span>
       </div>
     </div>
-    ${renderCycleTimeline(cycle)}
-    ${renderCycleCompoundSummary(cycle)}`;
+    ${renderCycleTimeline(cycle)}`;
+
+  // Async: fill compound + supply requirement placeholders
+  renderCycleCompoundRequirements(cycle, 'cycle-inline-compound-req');
+  if (typeof renderCycleSupplyRequirements === 'function') {
+    renderCycleSupplyRequirements(cycle, 'cycle-inline-supply-req');
+  }
+  // Clear the old separate supply requirements div
+  const oldSupplyReqDiv = document.getElementById('cycle-detail-supply-requirements');
+  if (oldSupplyReqDiv) oldSupplyReqDiv.innerHTML = '';
 }
 
 function renderPlannedCycleContent(cycle) {
@@ -1057,6 +1086,8 @@ function renderPlannedCycleContent(cycle) {
   }
 
   return `
+    <div id="cycle-inline-compound-req"></div>
+    <div id="cycle-inline-supply-req"></div>
     <div class="detail-section">
       <h3 class="detail-section-title">Compounds</h3>
       <div class="cycle-summary-entries">${entryCards}</div>
@@ -1218,14 +1249,39 @@ async function completeCycle(cycleId) {
 
   cycle.status = 'completed';
   await persistCycles();
-  showToast(`Completed: ${cycle.name}`, 'success');
+
+  // Return any allocated inventory to stock
+  if (typeof window.returnCycleInventory === 'function') {
+    const returned = await window.returnCycleInventory(cycleId);
+    if (returned.length > 0) {
+      const summary = returned.map(r => `${r.amount.toFixed(1)} mg ${r.compoundName}`).join(', ');
+      showToast(`Completed: ${cycle.name} — Returned to stock: ${summary}`, 'success');
+    } else {
+      showToast(`Completed: ${cycle.name}`, 'success');
+    }
+  } else {
+    showToast(`Completed: ${cycle.name}`, 'success');
+  }
+
   renderCycleDetail();
 }
 
 async function deleteCycle(cycleId) {
+  // Return any allocated inventory before deleting
+  if (typeof window.returnCycleInventory === 'function') {
+    const returned = await window.returnCycleInventory(cycleId);
+    if (returned.length > 0) {
+      const summary = returned.map(r => `${r.amount.toFixed(1)} mg ${r.compoundName}`).join(', ');
+      showToast(`Cycle deleted — Returned to stock: ${summary}`, 'success');
+    } else {
+      showToast('Cycle deleted', 'success');
+    }
+  } else {
+    showToast('Cycle deleted', 'success');
+  }
+
   allCycles = allCycles.filter(c => c.id !== cycleId);
   await persistCycles();
-  showToast('Cycle deleted', 'success');
   closeCycleDetail();
 }
 
@@ -1712,6 +1768,289 @@ function scrollCycleToToday() {
 }
 
 // ═══════════════════════════════════════
+// AUTO-MATCH DOSES TO CYCLE
+// ═══════════════════════════════════════
+
+// Reconcile: check dose history against a cycle's pending scheduled doses.
+// Matches logged doses to pending scheduled doses by compound name + date proximity.
+async function reconcileCycleDoses(cycleId) {
+  const cycle = allCycles.find(c => c.id === cycleId);
+  if (!cycle) return;
+  if (cycle.status !== 'active' && cycle.status !== 'paused') return;
+
+  const pendingDoses = (cycle.scheduledDoses || []).filter(d => d.status === 'pending');
+  if (pendingDoses.length === 0) return;
+
+  // Only reconcile past doses (not future scheduled ones)
+  const now = Date.now();
+  const pastPending = pendingDoses.filter(d => new Date(d.scheduledAt).getTime() <= now);
+  if (pastPending.length === 0) return;
+
+  const doseHistory = await window.api.getDoses();
+  const dayMs = 24 * 60 * 60 * 1000;
+  let changed = false;
+
+  for (const scheduled of pastPending) {
+    const schedTime = new Date(scheduled.scheduledAt).getTime();
+
+    // Find a logged dose matching this compound within ±24h
+    const match = doseHistory.find(d =>
+      d.compoundName === scheduled.compoundName &&
+      Math.abs(new Date(d.administeredAt).getTime() - schedTime) <= dayMs
+    );
+
+    if (match) {
+      scheduled.status = 'taken';
+      scheduled.loggedDoseId = match.id;
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    await persistCycles();
+  }
+}
+
+// When a dose is logged outside the cycle flow (regular Log Dose button),
+// find the closest pending scheduled dose in any active cycle and mark it taken.
+async function autoMatchCycleDoses(compoundName, administeredAt) {
+  const adminTime = new Date(administeredAt).getTime();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  let matched = false;
+  for (const cycle of allCycles) {
+    if (cycle.status !== 'active' && cycle.status !== 'paused') continue;
+
+    const pendingDoses = (cycle.scheduledDoses || [])
+      .filter(d => d.status === 'pending' && d.compoundName === compoundName);
+
+    if (pendingDoses.length === 0) continue;
+
+    // Find the closest pending dose within ±24h, preferring past (overdue) doses
+    let best = null;
+    let bestScore = Infinity;
+    for (const dose of pendingDoses) {
+      const schedTime = new Date(dose.scheduledAt).getTime();
+      const diff = Math.abs(schedTime - adminTime);
+      if (diff > dayMs) continue;
+      // Prefer overdue doses (scheduled before admin time) — use diff directly,
+      // but add a small penalty for future doses
+      const score = schedTime <= adminTime ? diff : diff + dayMs;
+      if (score < bestScore) {
+        best = dose;
+        bestScore = score;
+      }
+    }
+
+    if (best) {
+      best.status = 'taken';
+      matched = true;
+      break; // Only match one cycle's dose per logged dose
+    }
+  }
+
+  if (matched) {
+    await persistCycles();
+  }
+}
+
+// ═══════════════════════════════════════
+// COMPOUND REQUIREMENTS
+// ═══════════════════════════════════════
+
+function cycleEstimateDoseCount(entry) {
+  let days = entry.durationDays || 0;
+
+  // Account for on/off cycling
+  if (entry.onDays && entry.offDays) {
+    const cycleLen = entry.onDays + entry.offDays;
+    const fullCycles = Math.floor(days / cycleLen);
+    const remainder = days % cycleLen;
+    days = fullCycles * entry.onDays + Math.min(remainder, entry.onDays);
+  }
+
+  switch (entry.frequency) {
+    case 'daily': return days;
+    case '2x_daily': return days * 2;
+    case '3x_weekly': return Math.round(days * 3 / 7);
+    case 'eod': return Math.ceil(days / 2);
+    case 'weekly': return Math.ceil(days / 7);
+    case 'every_n_days':
+    case 'custom':
+      return entry.customFreqDays > 0 ? Math.ceil(days / entry.customFreqDays) : days;
+    case 'custom_days':
+      return entry.customDays ? Math.round(days * entry.customDays.length / 7) : days;
+    default: return days;
+  }
+}
+
+function formatReqAmount(val) {
+  return val % 1 === 0 ? val.toString() : val.toFixed(1);
+}
+
+async function renderCycleCompoundRequirements(cycle, containerId) {
+  // Ensure delivered orders have inventory entries before checking stock
+  if (typeof window.reconcileDeliveredOrders === 'function') {
+    await window.reconcileDeliveredOrders();
+  }
+
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  // Calculate total compound amounts needed
+  const compoundNeeds = {};
+
+  if (cycle.scheduledDoses && cycle.scheduledDoses.length > 0) {
+    for (const dose of cycle.scheduledDoses) {
+      if (!compoundNeeds[dose.compoundName]) {
+        compoundNeeds[dose.compoundName] = { color: dose.color, unit: dose.unit, doseAmount: dose.dose, totalDoses: 0, totalAmount: 0 };
+      }
+      compoundNeeds[dose.compoundName].totalDoses++;
+      compoundNeeds[dose.compoundName].totalAmount += dose.dose;
+    }
+  } else {
+    for (const entry of cycle.entries) {
+      const doseCount = cycleEstimateDoseCount(entry);
+      if (!compoundNeeds[entry.compoundName]) {
+        compoundNeeds[entry.compoundName] = { color: entry.color, unit: entry.unit, doseAmount: entry.dose, totalDoses: 0, totalAmount: 0 };
+      }
+      compoundNeeds[entry.compoundName].totalDoses += doseCount;
+      compoundNeeds[entry.compoundName].totalAmount += entry.dose * doseCount;
+    }
+  }
+
+  if (Object.keys(compoundNeeds).length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  // Get inventory data and cycle allocations
+  const inventory = await window.api.getInventory();
+  const allocations = typeof window.getCycleAllocations === 'function'
+    ? await window.getCycleAllocations(cycle.id) : [];
+  const hasAllocations = allocations.length > 0;
+
+  const cards = Object.entries(compoundNeeds).map(([name, data]) => {
+    // Sum remaining amounts from in-stock inventory only (exclude in-use for other cycles)
+    const inStockItems = inventory.filter(item =>
+      item.compoundName === name && item.status !== 'in-use'
+    );
+    let available = inStockItems.reduce((sum, item) => sum + (item.remainingAmount || 0), 0);
+
+    // Find allocation for THIS cycle
+    const alloc = allocations.find(a => a.compoundName === name);
+    const allocatedAmount = alloc ? (alloc.allocatedAmount || 0) : 0;
+    const allocRemaining = alloc ? (alloc.remainingAmount || 0) : 0;
+    const allocUsed = allocatedAmount - allocRemaining;
+
+    let needed = data.totalAmount;
+    let displayUnit = data.unit;
+
+    // Inventory remainingAmount is in mg; normalize mcg doses to mg for comparison
+    if (displayUnit === 'mcg') {
+      needed = needed / 1000;
+      displayUnit = 'mg';
+    }
+
+    const sufficient = available >= needed || hasAllocations;
+
+    // Build allocation display
+    let allocHtml = '';
+    if (alloc) {
+      const depletionPct = allocatedAmount > 0 ? Math.round((allocUsed / allocatedAmount) * 100) : 0;
+      allocHtml = `
+        <div class="cycle-alloc-card">
+          <div class="cycle-alloc-header">Allocated: ${formatReqAmount(allocatedAmount)} ${displayUnit}</div>
+          <div class="cycle-alloc-progress">
+            <div class="cycle-alloc-progress-fill" style="width:${Math.min(depletionPct, 100)}%"></div>
+          </div>
+          <div class="cycle-alloc-detail">Used ${formatReqAmount(allocUsed)} / ${formatReqAmount(allocatedAmount)} ${displayUnit} (${formatReqAmount(allocRemaining)} remaining)</div>
+        </div>`;
+    }
+
+    return `
+      <div class="cycle-compound-req-card ${sufficient ? 'sufficient' : 'insufficient'}">
+        <span class="color-dot" style="background:${data.color}"></span>
+        <div class="cycle-compound-req-info">
+          <span class="cycle-compound-req-name">${escapeHtml(name)}</span>
+          <span class="cycle-compound-req-detail">${data.totalDoses} doses &times; ${data.doseAmount} ${data.unit}</span>
+        </div>
+        <div class="cycle-compound-req-qty">
+          <span class="cycle-compound-req-needed">Need: ${formatReqAmount(needed)} ${displayUnit}</span>
+          <span class="cycle-compound-req-available ${sufficient ? '' : 'low'}">In Stock: ${formatReqAmount(available)} ${displayUnit}</span>
+        </div>
+        ${!alloc && !sufficient ? `<div class="cycle-compound-req-deficit">Short ${formatReqAmount(needed - available)} ${displayUnit}</div>` : ''}
+        ${allocHtml}
+      </div>`;
+  }).join('');
+
+  // Allocation action button
+  let actionBtn = '';
+  if (hasAllocations) {
+    actionBtn = `<button class="btn btn-secondary btn-small cycle-alloc-btn" onclick="returnCycleInventoryFromUI('${cycle.id}')">Return to Stock</button>`;
+  } else {
+    actionBtn = `<button class="btn btn-primary btn-small cycle-alloc-btn" onclick="allocateInventoryFromUI('${cycle.id}')">Allocate Inventory</button>`;
+  }
+
+  container.innerHTML = `
+    <div class="detail-section">
+      <h3 class="detail-section-title">Compound Requirements</h3>
+      <div class="cycle-compound-req-grid">${cards}</div>
+      <div style="margin-top:10px">${actionBtn}</div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════
+// CYCLE ALLOCATION UI ACTIONS
+// ═══════════════════════════════════════
+
+async function allocateInventoryFromUI(cycleId) {
+  const cycle = allCycles.find(c => c.id === cycleId);
+  if (!cycle) {
+    console.warn('[allocateUI] cycle not found:', cycleId);
+    showToast('Cycle not found', 'error');
+    return;
+  }
+
+  if (typeof window.allocateInventoryForCycle !== 'function') {
+    console.warn('[allocateUI] allocateInventoryForCycle not available on window');
+    showToast('Allocation not available', 'error');
+    return;
+  }
+
+  console.log('[allocateUI] calling allocateInventoryForCycle for cycle:', cycle.id, cycle.name,
+    'entries:', cycle.entries.length, 'scheduledDoses:', (cycle.scheduledDoses || []).length);
+
+  try {
+    const summary = await window.allocateInventoryForCycle(cycle);
+    if (summary.length === 0) {
+      showToast('No inventory available to allocate', 'error');
+      return;
+    }
+
+    const desc = summary.map(s => `${s.allocated.toFixed(1)} mg ${s.compoundName}`).join(', ');
+    showToast(`Allocated: ${desc}`, 'success');
+    renderCycleDetail();
+  } catch (err) {
+    console.error('[allocateUI] error:', err);
+    showToast('Allocation failed: ' + err.message, 'error');
+  }
+}
+
+async function returnCycleInventoryFromUI(cycleId) {
+  if (typeof window.returnCycleInventory !== 'function') return;
+
+  const returned = await window.returnCycleInventory(cycleId);
+  if (returned.length > 0) {
+    const desc = returned.map(r => `${r.amount.toFixed(1)} mg ${r.compoundName}`).join(', ');
+    showToast(`Returned to stock: ${desc}`, 'success');
+  } else {
+    showToast('No inventory to return', 'info');
+  }
+  renderCycleDetail();
+}
+
+// ═══════════════════════════════════════
 // EXPOSE TO GLOBAL SCOPE
 // ═══════════════════════════════════════
 
@@ -1746,3 +2085,7 @@ window.logScheduledDose = logScheduledDose;
 window.skipScheduledDose = skipScheduledDose;
 window.markScheduledDoseTaken = markScheduledDoseTaken;
 window.renderDashboardCycles = renderDashboardCycles;
+window.renderCycleCompoundRequirements = renderCycleCompoundRequirements;
+window.autoMatchCycleDoses = autoMatchCycleDoses;
+window.allocateInventoryFromUI = allocateInventoryFromUI;
+window.returnCycleInventoryFromUI = returnCycleInventoryFromUI;

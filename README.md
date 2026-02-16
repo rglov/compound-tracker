@@ -1,3 +1,7 @@
+
+> [!WARNING] DISCLAIMER
+> This app is for research purposes only
+
 # Compound Tracker
 
 Desktop app for tracking peptide, AAS, and HGH compound levels with pharmacokinetic decay modeling. Built with Electron.

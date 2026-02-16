@@ -34,6 +34,12 @@ function switchView(viewName) {
     case 'cycles':
       refreshCyclesList();
       break;
+    case 'inventory':
+      refreshInventoryView();
+      break;
+    case 'reconstitution':
+      refreshReconstitutionView();
+      break;
     case 'settings':
       refreshCustomCompoundsList();
       refreshCustomBlendsList();
@@ -89,5 +95,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initCompoundDetail();
   await initLibrary();
   await initCycles();
+  await initInventory();
+  initReconstitution();
   await initDashboard();
 });

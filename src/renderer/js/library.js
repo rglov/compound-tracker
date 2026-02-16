@@ -1861,6 +1861,7 @@ let librarySearchTerm = '';
 let libraryTypeFilter = 'all';
 let libraryTagFilter = 'all';
 let libraryStatusFilter = 'all';
+let _libCompoundsWithInventory = new Set();
 
 let _activeCompoundNames = new Set();
 let _plannedCompoundNames = new Set();
@@ -1940,10 +1941,14 @@ function getFilteredLibrary() {
   return LIBRARY_DATA.filter(compound => {
     // Status filter
     if (libraryStatusFilter !== 'all') {
-      const status = getCompoundStatus(compound.name);
-      if (libraryStatusFilter === 'reference' && status !== 'reference') return false;
-      if (libraryStatusFilter === 'active' && status !== 'active') return false;
-      if (libraryStatusFilter === 'planned' && status !== 'planned' && status !== 'active') return false;
+      if (libraryStatusFilter === 'in-stock') {
+        if (!_libCompoundsWithInventory.has(compound.name)) return false;
+      } else {
+        const status = getCompoundStatus(compound.name);
+        if (libraryStatusFilter === 'reference' && status !== 'reference') return false;
+        if (libraryStatusFilter === 'active' && status !== 'active') return false;
+        if (libraryStatusFilter === 'planned' && status !== 'planned' && status !== 'active') return false;
+      }
     }
 
     // Search filter
@@ -1994,6 +1999,26 @@ async function renderLibrary() {
 
   await refreshCompoundStatuses();
 
+  // Load inventory for stock display on cards
+  const _libInventory = await window.api.getInventory();
+  const _libInventoryByCompound = {};
+  _libCompoundsWithInventory = new Set();
+  for (const item of _libInventory) {
+    const name = item.compoundName || '';
+    if (!_libInventoryByCompound[name]) _libInventoryByCompound[name] = [];
+    _libInventoryByCompound[name].push(item);
+    _libCompoundsWithInventory.add(name);
+  }
+  // Also check orders for compound line items
+  const _libOrders = await window.api.getOrders();
+  for (const order of _libOrders) {
+    for (const li of (order.lineItems || [])) {
+      if (li.type === 'compound' && li.compoundName) {
+        _libCompoundsWithInventory.add(li.compoundName);
+      }
+    }
+  }
+
   const filtered = getFilteredLibrary();
   const countEl = document.getElementById('library-count');
   if (countEl) countEl.textContent = `${filtered.length} compound${filtered.length !== 1 ? 's' : ''}`;
@@ -2043,18 +2068,88 @@ async function renderLibrary() {
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               ${formatHalfLife(compound.halfLifeHours)}
             </span>
-            ${compound.benefits.length > 0 ? `
-              <span class="library-meta-item library-benefit-pills">
-                ${compound.benefits.slice(0, 3).map(b => `<span class="library-benefit-pill">${escapeHtml(b)}</span>`).join('')}
-                ${compound.benefits.length > 3 ? `<span class="library-benefit-pill library-benefit-pill-more">+${compound.benefits.length - 3}</span>` : ''}
-              </span>` : ''}
           </div>
         </div>
 
-        <div class="library-card-tags">
-          ${compound.tags.slice(0, 4).map(tag => `<span class="library-tag">${escapeHtml(tag)}</span>`).join('')}
-          ${compound.tags.length > 4 ? `<span class="library-tag library-tag-more">+${compound.tags.length - 4}</span>` : ''}
-        </div>
+        ${compound.benefits.length > 0 ? `
+          <div class="library-card-benefits">
+            ${compound.benefits.slice(0, 3).map(b => `<span class="library-benefit-pill">${escapeHtml(b)}</span>`).join('')}
+            ${compound.benefits.length > 3 ? `<span class="library-benefit-pill library-benefit-pill-more">+${compound.benefits.length - 3}</span>` : ''}
+          </div>` : ''}
+
+        ${compound.tags.length > 0 ? `
+          <div class="library-card-tagline">${compound.tags.map(t => escapeHtml(t)).join(' · ')}</div>` : ''}
+
+        ${(() => {
+          // Orders are the source of truth — gather ALL order items for this compound
+          const invItems = _libInventoryByCompound[compound.name] || [];
+          const oItems = [];
+          for (const order of _libOrders) {
+            for (const li of (order.lineItems || [])) {
+              if (li.type === 'compound' && li.compoundName === compound.name) {
+                oItems.push(li);
+              }
+            }
+          }
+          if (oItems.length === 0 && invItems.length === 0) return '';
+
+          // Group by mg per vial — orders for vials/cost/tested/batch, inventory for remainingAmount
+          const mgGroups = {};
+          for (const item of oItems) {
+            const mg = item.amountPerUnit || 0;
+            if (!mgGroups[mg]) mgGroups[mg] = { orderItems: [], invItems: [] };
+            mgGroups[mg].orderItems.push(item);
+          }
+          for (const item of invItems) {
+            const mg = item.amountPerUnit || 0;
+            if (!mgGroups[mg]) mgGroups[mg] = { orderItems: [], invItems: [] };
+            mgGroups[mg].invItems.push(item);
+          }
+
+          let cards = '';
+          for (const [mg, group] of Object.entries(mgGroups)) {
+            const mgNum = parseFloat(mg);
+            const totalVials = group.orderItems.reduce((s, e) => s + (e.quantity || 0), 0);
+            const totalMg = mgNum * totalVials;
+            const totalRemaining = group.invItems.reduce((s, e) => s + (e.remainingAmount || 0), 0);
+            const allItems = [...group.orderItems, ...group.invItems];
+            const capColors = [...new Set(allItems.map(e => e.capColor).filter(c => c && c !== '#000000'))];
+            const capDots = capColors.slice(0, 3).map(c =>
+              '<span class="inv-cap-dot" style="background:' + c + '"></span>'
+            ).join('');
+            const batches = [...new Set(group.orderItems.map(e => e.batchNumber).filter(Boolean))];
+            const batchTags = batches.map(b => '<span class="inv-batch-tag">' + escapeHtml(b) + '</span>').join('');
+            const tested = group.orderItems.some(e => e.tested);
+            const hasStock = group.invItems.length > 0;
+            const pct = totalMg > 0 && hasStock ? Math.round((totalRemaining / totalMg) * 100) : 0;
+            const isLow = hasStock && pct < 20;
+            const totalCost = group.orderItems.reduce((s, e) => s + (e.cost || 0), 0);
+            const costPerVial = totalVials > 0 && totalCost > 0 ? (totalCost / totalVials) : 0;
+
+            cards += '<div class="compound-inv-card lib-inv-card ' + (isLow ? 'low' : '') + '">' +
+              '<div class="compound-inv-card-header">' +
+                capDots +
+                '<span class="compound-inv-card-name">' + escapeHtml(compound.name) + '</span>' +
+                (tested ? '<span class="inv-tested-badge" title="Tested">&#10003;</span>' : '') +
+                batchTags +
+                (isLow ? '<span class="inv-low-badge">Low</span>' : '') +
+              '</div>' +
+              '<div class="compound-inv-card-qty">' +
+                '<span class="compound-inv-qty-value">' + totalVials + '</span>' +
+                '<span class="compound-inv-qty-unit">vials</span>' +
+                (mgNum ? '<span class="compound-inv-qty-x">x</span><span class="compound-inv-qty-value">' + mgNum + '</span><span class="compound-inv-qty-unit">mg</span>' : '') +
+              '</div>' +
+              '<div class="compound-inv-card-detail">' +
+                '<span>' + totalMg.toFixed(0) + ' mg total</span>' +
+                (hasStock ? '<span>' + totalRemaining.toFixed(0) + ' mg remaining</span>' : '') +
+                (totalCost > 0 ? '<span class="compound-inv-cost">$' + totalCost.toFixed(2) + (costPerVial > 0 ? ' ($' + costPerVial.toFixed(2) + '/vial)' : '') + '</span>' : '') +
+              '</div>' +
+              (hasStock ? '<div class="inv-progress-bar-sm"><div class="inv-progress-fill ' + (isLow ? 'low' : '') + '" style="width:' + Math.min(pct, 100) + '%"></div></div>' : '') +
+            '</div>';
+          }
+
+          return '<div class="library-card-inventory-grid" onclick="event.stopPropagation()">' + cards + '</div>';
+        })()}
 
         <div class="library-card-expand-hint">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2147,101 +2242,68 @@ async function saveLibraryEdits() {
 function renderLibraryReadView(compound, typeConf) {
   const sections = [];
 
-  // Info row
+  // Benefits & Side Effects — side-by-side boxes
   sections.push(`
-    <div class="lib-detail-info-row">
-      <div class="lib-detail-info-card">
-        <span class="lib-detail-info-label">Half-Life</span>
-        <span class="lib-detail-info-value">${formatHalfLife(compound.halfLifeHours)}</span>
+    <div class="detail-box-row">
+      <div class="detail-box benefits-box">
+        <h4 class="detail-box-header benefits-header">✦ Benefits</h4>
+        ${compound.tags.length > 0 ? `
+          <div class="library-tag-chips">
+            ${compound.tags.map(t => `<span class="tag-chip">${escapeHtml(t)}</span>`).join('')}
+          </div>` : ''}
+        ${compound.benefits.length > 0
+          ? `<span class="detail-box-text benefits-text">${compound.benefits.map(b => escapeHtml(b)).join(' · ')}</span>`
+          : `<span class="detail-box-none">No benefits listed</span>`}
       </div>
-      <div class="lib-detail-info-card">
-        <span class="lib-detail-info-label">Type</span>
-        <span class="lib-detail-info-value" style="color:${typeConf.color}">${compound.type}</span>
-      </div>
-      <div class="lib-detail-info-card">
-        <span class="lib-detail-info-label">Benefits</span>
-        <span class="lib-detail-info-value">${compound.benefits.length}</span>
-      </div>
-      <div class="lib-detail-info-card">
-        <span class="lib-detail-info-label">Side Effects</span>
-        <span class="lib-detail-info-value">${compound.sideEffects.length}</span>
+      <div class="detail-box side-effects-box">
+        <h4 class="detail-box-header side-effects-header">⚠ Side Effects</h4>
+        ${compound.sideEffects.length > 0
+          ? `<span class="detail-box-text side-effects-text">${compound.sideEffects.map(s => escapeHtml(s)).join(' · ')}</span>`
+          : `<span class="detail-box-none">No known side effects</span>`}
       </div>
     </div>`);
 
-  // Benefits
-  if (compound.benefits.length > 0) {
-    sections.push(`
-      <div class="lib-detail-section">
-        <h4 class="library-detail-label">Benefits</h4>
-        <div class="library-benefit-tags">
-          ${compound.benefits.map(b => `<span class="library-benefit-tag">${escapeHtml(b)}</span>`).join('')}
-        </div>
-      </div>`);
-  }
-
-  // Tags
-  if (compound.tags.length > 0) {
-    sections.push(`
-      <div class="lib-detail-section">
-        <h4 class="library-detail-label">Tags</h4>
-        <div class="library-card-tags">
-          ${compound.tags.map(t => `<span class="library-tag">${escapeHtml(t)}</span>`).join('')}
-        </div>
-      </div>`);
-  }
-
-  // Good With / Not Good With
+  // Compatibility (merged Good With / Not Good With)
   if (compound.goodWith.length > 0 || compound.notGoodWith.length > 0) {
-    const makeCompatTag = (name, type) => {
+    const makeCompatItem = (name, type) => {
       const exists = LIBRARY_DATA.find(c => c.name === name);
       const escapedName = escapeHtml(name).replace(/'/g, "\\'");
-      if (exists) {
-        return `<span class="library-compat-tag ${type} clickable" onclick="event.stopPropagation(); openLibraryCompoundDetail('${escapedName}')">${escapeHtml(name)}</span>`;
-      }
-      return `<span class="library-compat-tag ${type}">${escapeHtml(name)}</span>`;
+      const prefix = type === 'good' ? '✓' : '✗';
+      const cls = `compat-item ${type}${exists ? ' clickable' : ''}`;
+      const onclick = exists ? ` onclick="event.stopPropagation(); openLibraryCompoundDetail('${escapedName}')"` : '';
+      return `<span class="${cls}"${onclick}>${prefix} ${escapeHtml(name)}</span>`;
     };
 
-    sections.push(`
-      <div class="lib-detail-section">
-        ${compound.goodWith.length > 0 ? `
-          <h4 class="library-detail-label library-label-good">Good With</h4>
-          <div class="library-compat-tags">
-            ${compound.goodWith.map(g => makeCompatTag(g, 'good')).join('')}
-          </div>` : ''}
-        ${compound.notGoodWith.length > 0 ? `
-          <h4 class="library-detail-label library-label-bad" style="margin-top:10px">Not Good With</h4>
-          <div class="library-compat-tags">
-            ${compound.notGoodWith.map(n => makeCompatTag(n, 'bad')).join('')}
-          </div>` : ''}
-      </div>`);
-  }
+    const items = [
+      ...compound.goodWith.map(g => makeCompatItem(g, 'good')),
+      ...compound.notGoodWith.map(n => makeCompatItem(n, 'bad'))
+    ];
 
-  // Protocols
-  if (compound.protocols) {
     sections.push(`
       <div class="lib-detail-section">
-        <h4 class="library-detail-label">Protocols & Dosing</h4>
-        <div class="library-protocol-text">${escapeHtml(compound.protocols)}</div>
-      </div>`);
-  }
-
-  // Side Effects
-  if (compound.sideEffects.length > 0) {
-    sections.push(`
-      <div class="lib-detail-section">
-        <h4 class="library-detail-label library-label-warning">Side Effects</h4>
-        <div class="library-side-effects">
-          ${compound.sideEffects.map(s => `<span class="library-side-effect">${escapeHtml(s)}</span>`).join('')}
+        <h4 class="library-detail-label">Compatibility</h4>
+        <div class="compat-row">
+          ${items.join('')}
         </div>
       </div>`);
   }
 
-  // Notes
-  if (compound.notes) {
+  // Protocols & Notes — side-by-side boxes
+  if (compound.protocols || compound.notes) {
     sections.push(`
-      <div class="lib-detail-section">
-        <h4 class="library-detail-label">Notes</h4>
-        <p class="library-notes-text">${escapeHtml(compound.notes)}</p>
+      <div class="detail-box-row">
+        <div class="detail-box protocols-box">
+          <h4 class="detail-box-header protocols-header">📋 Protocols & Dosing</h4>
+          ${compound.protocols
+            ? `<span class="detail-box-text protocols-text">${escapeHtml(compound.protocols)}</span>`
+            : `<span class="detail-box-none">No protocols listed</span>`}
+        </div>
+        <div class="detail-box notes-box">
+          <h4 class="detail-box-header notes-header">📝 Notes</h4>
+          ${compound.notes
+            ? `<span class="detail-box-text notes-text">${escapeHtml(compound.notes)}</span>`
+            : `<span class="detail-box-none">No notes</span>`}
+        </div>
       </div>`);
   }
 
