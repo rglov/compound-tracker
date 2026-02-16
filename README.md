@@ -1,5 +1,5 @@
 
-> [!WARNING] DISCLAIMER
+# DISCLAIMER
 > This app is for research purposes only
 
 # Compound Tracker
