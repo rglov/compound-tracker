@@ -799,6 +799,21 @@
     </div>
   </div>
 
+  <!-- Vial Selection Modal (for cycle allocation) -->
+  <div id="vial-select-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeVialSelectModal()">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h3>Select Vials to Allocate</h3>
+        <button class="modal-close" onclick="closeVialSelectModal()">&times;</button>
+      </div>
+      <div id="vial-select-body" class="vial-select-body"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" onclick="closeVialSelectModal()">Cancel</button>
+        <button type="button" class="btn btn-primary" id="vial-select-submit" onclick="submitVialSelection()">Allocate Selected</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast notification -->
   <div id="toast" class="toast hidden"></div>
 

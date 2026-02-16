@@ -32,9 +32,85 @@ const ORDER_STATUS_CONFIG = {
 // ═══════════════════════════════════════
 
 async function initInventory() {
+  await migrateMultiVialEntries();
   setupInventorySubNav();
   setupSupplyForm();
   setupOrderForm();
+}
+
+// One-time migration: convert legacy multi-vial and synthetic entries to per-vial model
+async function migrateMultiVialEntries() {
+  const inventory = await window.api.getInventory();
+  let changed = false;
+
+  for (const item of inventory) {
+    // Remove synthetic cycle-allocation entries
+    if (item.format === 'cycle-allocation') {
+      await window.api.deleteInventory(item.id);
+      changed = true;
+      continue;
+    }
+
+    // Convert returned entries to normal vials
+    if (item.format === 'returned') {
+      await window.api.updateInventory(item.id, {
+        format: 'vial',
+        status: 'in-stock',
+        quantity: 1
+      });
+      changed = true;
+      continue;
+    }
+
+    // Set explicit status on entries missing it
+    if (!item.status) {
+      await window.api.updateInventory(item.id, { status: 'in-stock' });
+      changed = true;
+    }
+
+    // Split multi-vial entries into individual vials
+    if ((item.quantity || 0) > 1) {
+      const qty = item.quantity;
+      const perVial = item.amountPerUnit || 0;
+      let pool = item.remainingAmount || 0;
+
+      // Update original entry to be first vial
+      const firstVialRemaining = Math.min(pool, perVial);
+      await window.api.updateInventory(item.id, {
+        quantity: 1,
+        remainingAmount: firstVialRemaining,
+        status: item.status || 'in-stock'
+      });
+      pool -= firstVialRemaining;
+
+      // Create additional individual vials
+      for (let i = 1; i < qty; i++) {
+        const vialRemaining = Math.min(pool, perVial);
+        const entry = {
+          id: generateId(),
+          compoundName: item.compoundName,
+          format: item.format || 'vial',
+          quantity: 1,
+          amountPerUnit: perVial,
+          volumePerUnit: item.volumePerUnit || null,
+          expiryDate: item.expiryDate || null,
+          remainingAmount: vialRemaining,
+          batchNumber: item.batchNumber || null,
+          capColor: item.capColor || null,
+          notes: item.notes || '',
+          status: item.status || 'in-stock',
+          createdAt: item.createdAt || new Date().toISOString()
+        };
+        await window.api.saveInventory(entry);
+        pool -= vialRemaining;
+      }
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    console.log('[inventory] Migration: converted to per-vial model');
+  }
 }
 
 async function loadInventoryData() {
@@ -108,13 +184,17 @@ function renderCompoundsTab() {
     compoundMap[key].invItems.push(item);
   }
 
-  // Gather in-use allocations separately, grouped by compound
-  const inUseByCompound = {};
+  // Gather in-use vials separately, grouped by compound+mg then by cycleId
+  const inUseByKey = {};
   for (const item of _invInventoryData) {
     if (item.status !== 'in-use') continue;
     const name = item.compoundName || 'Unknown';
-    if (!inUseByCompound[name]) inUseByCompound[name] = [];
-    inUseByCompound[name].push(item);
+    const mg = item.amountPerUnit || 0;
+    const key = name + '||' + mg;
+    if (!inUseByKey[key]) inUseByKey[key] = {};
+    const cId = item.cycleId || 'unknown';
+    if (!inUseByKey[key][cId]) inUseByKey[key][cId] = [];
+    inUseByKey[key][cId].push(item);
   }
 
   const groupKeys = Object.keys(compoundMap).sort();
@@ -138,9 +218,19 @@ function renderCompoundsTab() {
     // Use order items for vials/cost/tested/batch (source of truth)
     const totalVials = orderItems.reduce((sum, e) => sum + (e.quantity || 0), 0);
     const totalMg = amountPerUnit * totalVials;
-    // Use inventory entries for remainingAmount
-    const totalRemaining = invItems.reduce((sum, e) => sum + (e.remainingAmount || 0), 0);
-    const hasStock = invItems.length > 0;
+    // Use inventory entries for remainingAmount (in-stock only)
+    const inStockRemaining = invItems.reduce((sum, e) => sum + (e.remainingAmount || 0), 0);
+
+    // Count in-stock vials and in-use vials for this compound+mg
+    const inStockVialCount = invItems.length;
+    const inUseCycles = inUseByKey[key] || {};
+    const inUseVials = Object.values(inUseCycles).flat();
+    const inUseVialCount = inUseVials.length;
+    const inUseRemaining = inUseVials.reduce((sum, v) => sum + (v.remainingAmount || 0), 0);
+
+    // Total remaining = in-stock + in-use
+    const totalRemaining = inStockRemaining + inUseRemaining;
+    const hasStock = invItems.length > 0 || inUseVialCount > 0;
 
     // Collect cap colors from both sources
     const allItems = [...orderItems, ...invItems];
@@ -177,24 +267,57 @@ function renderCompoundsTab() {
         <div class="compound-inv-card-detail">
           <span>${totalMg.toFixed(0)} mg total</span>
           ${hasStock ? '<span>' + totalRemaining.toFixed(0) + ' mg remaining</span>' : ''}
+          ${(inStockVialCount > 0 || inUseVialCount > 0) ? '<span>' + inStockVialCount + ' in stock' + (inUseVialCount > 0 ? ', ' + inUseVialCount + ' in use' : '') + '</span>' : ''}
           ${totalCost > 0 ? '<span class="compound-inv-cost">$' + totalCost.toFixed(2) + (costPerVial > 0 ? ' ($' + costPerVial.toFixed(2) + '/vial)' : '') + '</span>' : ''}
         </div>
         ${hasStock ? `
           <div class="inv-progress-bar-sm">
             <div class="inv-progress-fill ${isLow ? 'low' : ''}" style="width:${Math.min(pct, 100)}%"></div>
           </div>` : ''}
+        ${invItems.length > 0 ? `
         <div class="compound-inv-card-actions">
-          ${invItems.map(si => `
-            <button class="btn btn-secondary btn-tiny" onclick="invAdjustCompoundStock('${si.id}')">Adjust</button>
-          `).join('')}
-        </div>
-        ${(inUseByCompound[compoundName] || []).map(iu => `
-          <div class="inv-in-use-badge">In Use: ${(iu.remainingAmount || 0).toFixed(1)}/${(iu.allocatedAmount || 0).toFixed(1)} mg &mdash; ${escapeHtml(iu.notes || 'Cycle')}</div>
-        `).join('')}
+          <button class="btn btn-secondary btn-tiny" onclick="invAdjustCompoundStockPicker('${escapeHtml(compoundName)}', ${amountPerUnit})">Adjust</button>
+        </div>` : ''}
+        ${Object.entries(inUseCycles).map(([cId, vials]) => {
+          const vialCt = vials.length;
+          const totalAllocated = vials.reduce((s, v) => s + (v.amountPerUnit || 0), 0);
+          const totalRem = vials.reduce((s, v) => s + (v.remainingAmount || 0), 0);
+          return `<div class="inv-in-use-badge">In Use: ${vialCt} vial${vialCt !== 1 ? 's' : ''} &mdash; ${totalRem.toFixed(1)}/${totalAllocated.toFixed(1)} mg</div>`;
+        }).join('')}
       </div>`;
   }
 
   container.innerHTML = `<div class="compound-inv-cards-grid">${html}</div>`;
+}
+
+function invAdjustCompoundStockPicker(compoundName, amountPerUnit) {
+  const vials = _invInventoryData.filter(i =>
+    i.compoundName === compoundName &&
+    (i.amountPerUnit || 0) === amountPerUnit &&
+    i.status !== 'in-use'
+  );
+  if (vials.length === 0) {
+    showToast('No in-stock vials to adjust', 'error');
+    return;
+  }
+  if (vials.length === 1) {
+    invAdjustCompoundStock(vials[0].id);
+    return;
+  }
+  // Multiple vials — let user pick by number
+  const lines = vials.map((v, i) => {
+    const cap = v.capColor && v.capColor !== '#000000' ? ` [${v.capColor}]` : '';
+    const batch = v.batchNumber ? ` batch:${v.batchNumber}` : '';
+    return `${i + 1}. ${v.remainingAmount.toFixed(1)}/${v.amountPerUnit} mg${cap}${batch}`;
+  });
+  const choice = prompt('Which vial to adjust?\n' + lines.join('\n') + '\n\nEnter number:');
+  if (choice === null) return;
+  const idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= vials.length) {
+    showToast('Invalid selection', 'error');
+    return;
+  }
+  invAdjustCompoundStock(vials[idx].id);
 }
 
 async function invAdjustCompoundStock(id) {
@@ -796,20 +919,25 @@ async function markOrderDelivered(id) {
       if (li.batchNumber) noteParts.push('Batch: ' + li.batchNumber);
       if (li.capColor && li.capColor !== '#000000') noteParts.push('Cap: ' + li.capColor);
 
-      const entry = {
-        id: generateId(),
-        compoundName: li.compoundName,
-        format: 'vial',
-        quantity: li.quantity || 1,
-        amountPerUnit: li.amountPerUnit || 0,
-        volumePerUnit: null,
-        expiryDate: null,
-        remainingAmount: (li.amountPerUnit || 0) * (li.quantity || 1),
-        batchNumber: li.batchNumber || null,
-        capColor: li.capColor || null,
-        notes: noteParts.join(' | ')
-      };
-      await window.api.saveInventory(entry);
+      // Create one inventory entry per physical vial
+      const vialCount = li.quantity || 1;
+      for (let v = 0; v < vialCount; v++) {
+        const entry = {
+          id: generateId(),
+          compoundName: li.compoundName,
+          format: 'vial',
+          quantity: 1,
+          amountPerUnit: li.amountPerUnit || 0,
+          volumePerUnit: null,
+          expiryDate: null,
+          remainingAmount: li.amountPerUnit || 0,
+          batchNumber: li.batchNumber || null,
+          capColor: li.capColor || null,
+          status: 'in-stock',
+          notes: noteParts.join(' | ')
+        };
+        await window.api.saveInventory(entry);
+      }
       addedCount++;
     } else if (li.type === 'supply' && li.name) {
       // Find existing supply by name+category or create new
@@ -1108,75 +1236,13 @@ async function renderCycleSupplyRequirements(cycle, containerId) {
 // CYCLE INVENTORY ALLOCATION
 // ═══════════════════════════════════════
 
-async function allocateInventoryForCycle(cycle) {
-  // Reconcile: ensure delivered orders have inventory entries
-  await reconcileDeliveredOrders();
-
-  const inventory = await window.api.getInventory();
-  const summary = [];
-
-  // Calculate total mg needed per compound
-  const compoundNeeds = {};
-  if (cycle.scheduledDoses && cycle.scheduledDoses.length > 0) {
-    for (const dose of cycle.scheduledDoses) {
-      const name = dose.compoundName;
-      if (!name) continue;
-      if (!compoundNeeds[name]) {
-        compoundNeeds[name] = { unit: dose.unit, totalAmount: 0 };
-      }
-      compoundNeeds[name].totalAmount += (parseFloat(dose.dose) || 0);
-    }
-  } else {
-    for (const entry of (cycle.entries || [])) {
-      const name = entry.compoundName;
-      if (!name) continue;
-      const doseCount = estimateEntryDoseCount(entry);
-      if (!compoundNeeds[name]) {
-        compoundNeeds[name] = { unit: entry.unit, totalAmount: 0 };
-      }
-      compoundNeeds[name].totalAmount += (parseFloat(entry.dose) || 0) * doseCount;
-    }
+async function allocateVialsToCycle(cycleId, vialIds) {
+  let count = 0;
+  for (const id of vialIds) {
+    await window.api.updateInventory(id, { status: 'in-use', cycleId });
+    count++;
   }
-
-  for (const [compoundName, data] of Object.entries(compoundNeeds)) {
-    let neededMg = data.totalAmount;
-    if (data.unit === 'mcg') neededMg = neededMg / 1000;
-    if (!neededMg || neededMg <= 0) continue;
-
-    const nameLower = compoundName.toLowerCase();
-    const stockItems = inventory
-      .filter(i => (i.compoundName || '').toLowerCase() === nameLower && i.status !== 'in-use' && (i.remainingAmount || 0) > 0)
-      .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
-
-    let allocated = 0;
-    for (const item of stockItems) {
-      if (allocated >= neededMg) break;
-      const deduct = Math.min(item.remainingAmount, neededMg - allocated);
-      item.remainingAmount -= deduct;
-      await window.api.updateInventory(item.id, { remainingAmount: item.remainingAmount });
-      allocated += deduct;
-    }
-
-    if (allocated > 0) {
-      const allocEntry = {
-        id: generateId(),
-        compoundName: compoundName,
-        status: 'in-use',
-        cycleId: cycle.id,
-        allocatedAmount: allocated,
-        remainingAmount: allocated,
-        amountPerUnit: 0,
-        quantity: 0,
-        format: 'cycle-allocation',
-        notes: 'Allocated for: ' + (cycle.name || 'Cycle'),
-        createdAt: new Date().toISOString()
-      };
-      await window.api.saveInventory(allocEntry);
-      summary.push({ compoundName, allocated, needed: neededMg });
-    }
-  }
-
-  return summary;
+  return count;
 }
 
 // Ensure every delivered order's compound line items have corresponding inventory entries.
@@ -1197,42 +1263,49 @@ async function reconcileDeliveredOrders() {
     for (const li of lineItems) {
       if (li.type !== 'compound' || !li.compoundName) continue;
 
-      // Check if any inventory entry exists for this compound
+      // Check if any inventory entry exists for this compound + mg size
       const nameLower = li.compoundName.toLowerCase();
+      const liMg = li.amountPerUnit || 0;
       const hasEntry = inventory.some(i =>
-        (i.compoundName || '').toLowerCase() === nameLower && (i.remainingAmount || 0) > 0
+        (i.compoundName || '').toLowerCase() === nameLower &&
+        (i.amountPerUnit || 0) === liMg &&
+        (i.remainingAmount || 0) > 0
       );
       if (hasEntry) continue;
 
       // Also check if there's a zero-remaining entry (already consumed) — don't re-create
       const hasAnyEntry = inventory.some(i =>
-        (i.compoundName || '').toLowerCase() === nameLower
+        (i.compoundName || '').toLowerCase() === nameLower &&
+        (i.amountPerUnit || 0) === liMg
       );
       if (hasAnyEntry) continue;
 
-      // No inventory entry at all for this compound — create one from the delivered order
-      const totalMg = (li.amountPerUnit || 0) * (li.quantity || 1);
-      if (totalMg <= 0) continue;
+      // No inventory entry at all for this compound — create per-vial entries from the delivered order
+      if ((li.amountPerUnit || 0) <= 0) continue;
 
       const noteParts = ['From order: ' + (order.supplier || '')];
       if (li.batchNumber) noteParts.push('Batch: ' + li.batchNumber);
 
-      const entry = {
-        id: generateId(),
-        compoundName: li.compoundName,
-        format: 'vial',
-        quantity: li.quantity || 1,
-        amountPerUnit: li.amountPerUnit || 0,
-        remainingAmount: totalMg,
-        batchNumber: li.batchNumber || null,
-        capColor: li.capColor || null,
-        notes: noteParts.join(' | '),
-        createdAt: new Date().toISOString()
-      };
-      await window.api.saveInventory(entry);
+      const vialCount = li.quantity || 1;
+      for (let v = 0; v < vialCount; v++) {
+        const entry = {
+          id: generateId(),
+          compoundName: li.compoundName,
+          format: 'vial',
+          quantity: 1,
+          amountPerUnit: li.amountPerUnit || 0,
+          remainingAmount: li.amountPerUnit || 0,
+          batchNumber: li.batchNumber || null,
+          capColor: li.capColor || null,
+          status: 'in-stock',
+          notes: noteParts.join(' | '),
+          createdAt: new Date().toISOString()
+        };
+        await window.api.saveInventory(entry);
 
-      // Add to local array so subsequent iterations see it
-      inventory.push(entry);
+        // Add to local array so subsequent iterations see it
+        inventory.push(entry);
+      }
     }
   }
 }
@@ -1243,33 +1316,16 @@ async function returnCycleInventory(cycleId) {
   const returned = [];
 
   for (const item of inUseItems) {
-    if ((item.remainingAmount || 0) > 0) {
-      // Find an in-stock item for same compound to return to
-      const stockItem = inventory.find(i =>
-        i.compoundName === item.compoundName && i.status !== 'in-use' && i.id !== item.id
-      );
-
-      if (stockItem) {
-        stockItem.remainingAmount = (stockItem.remainingAmount || 0) + item.remainingAmount;
-        await window.api.updateInventory(stockItem.id, { remainingAmount: stockItem.remainingAmount });
-      } else {
-        // Create new in-stock entry with the leftover
-        const returnEntry = {
-          id: generateId(),
-          compoundName: item.compoundName,
-          remainingAmount: item.remainingAmount,
-          amountPerUnit: 0,
-          quantity: 0,
-          format: 'returned',
-          notes: 'Returned from cycle allocation',
-          createdAt: new Date().toISOString()
-        };
-        await window.api.saveInventory(returnEntry);
-      }
-      returned.push({ compoundName: item.compoundName, amount: item.remainingAmount });
-    }
-    // Delete the in-use entry
-    await window.api.deleteInventory(item.id);
+    // Flip vial back to in-stock
+    await window.api.updateInventory(item.id, {
+      status: 'in-stock',
+      cycleId: null
+    });
+    returned.push({
+      compoundName: item.compoundName,
+      amount: item.remainingAmount || 0,
+      vialCount: 1
+    });
   }
 
   return returned;
@@ -1308,6 +1364,7 @@ window.navigateToInventoryTab = navigateToInventoryTab;
 
 // Compounds sub-tab
 window.invAdjustCompoundStock = invAdjustCompoundStock;
+window.invAdjustCompoundStockPicker = invAdjustCompoundStockPicker;
 
 // Supplies sub-tab
 window.openSupplyModal = openSupplyModal;
@@ -1337,7 +1394,7 @@ window.calculateCycleSupplyRequirements = calculateCycleSupplyRequirements;
 window.renderCycleSupplyRequirements = renderCycleSupplyRequirements;
 
 // Cycle inventory allocation
-window.allocateInventoryForCycle = allocateInventoryForCycle;
+window.allocateVialsToCycle = allocateVialsToCycle;
 window.returnCycleInventory = returnCycleInventory;
 window.getCycleAllocations = getCycleAllocations;
 window.reconcileDeliveredOrders = reconcileDeliveredOrders;

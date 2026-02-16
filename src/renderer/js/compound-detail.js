@@ -1140,7 +1140,8 @@ async function renderInventorySection(compoundName) {
   }
 
   // Gather inventory store entries (for remainingAmount tracking on delivered items)
-  const invItems = getInventoryForCompound(compoundName);
+  // Filter out in-use vials — those are allocated to cycles
+  const invItems = getInventoryForCompound(compoundName).filter(i => i.status !== 'in-use');
 
   if (allOrderItems.length === 0 && invItems.length === 0) {
     container.innerHTML = `

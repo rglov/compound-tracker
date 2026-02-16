@@ -1314,6 +1314,31 @@ async function logScheduledDose(cycleId, scheduledDoseId) {
 
   await window.api.addDose(doseRecord);
 
+  // Deduct from inventory (in-use vials first, then in-stock FIFO)
+  let deductAmount = scheduledDose.dose;
+  if (scheduledDose.unit === 'mcg') deductAmount = deductAmount / 1000;
+  const inventory = await window.api.getInventory();
+  const matchingVials = inventory
+    .filter(i => i.compoundName === scheduledDose.compoundName && (i.remainingAmount || 0) > 0)
+    .sort((a, b) => {
+      // Prefer in-use vials allocated to THIS cycle, then other in-use, then in-stock
+      const aScore = (a.status === 'in-use' && a.cycleId === cycleId) ? 0 : (a.status === 'in-use') ? 1 : 2;
+      const bScore = (b.status === 'in-use' && b.cycleId === cycleId) ? 0 : (b.status === 'in-use') ? 1 : 2;
+      return aScore - bScore;
+    });
+  let remaining = deductAmount;
+  for (const vial of matchingVials) {
+    if (remaining <= 0) break;
+    const deduct = Math.min(vial.remainingAmount, remaining);
+    await window.api.updateInventory(vial.id, { remainingAmount: Math.max(0, vial.remainingAmount - deduct) });
+    remaining -= deduct;
+  }
+
+  // Deduct supplies
+  if (typeof deductSuppliesForDose === 'function') {
+    await deductSuppliesForDose(scheduledDose.compoundName, scheduledDose.route);
+  }
+
   // Mark scheduled dose as taken
   scheduledDose.status = 'taken';
   scheduledDose.loggedDoseId = doseRecord.id;
@@ -1937,10 +1962,11 @@ async function renderCycleCompoundRequirements(cycle, containerId) {
     );
     let available = inStockItems.reduce((sum, item) => sum + (item.remainingAmount || 0), 0);
 
-    // Find allocation for THIS cycle
-    const alloc = allocations.find(a => a.compoundName === name);
-    const allocatedAmount = alloc ? (alloc.allocatedAmount || 0) : 0;
-    const allocRemaining = alloc ? (alloc.remainingAmount || 0) : 0;
+    // Find all allocated vials for THIS cycle
+    const allocVials = allocations.filter(a => a.compoundName === name);
+    const allocVialCount = allocVials.length;
+    const allocatedAmount = allocVials.reduce((s, v) => s + (v.amountPerUnit || 0), 0);
+    const allocRemaining = allocVials.reduce((s, v) => s + (v.remainingAmount || 0), 0);
     const allocUsed = allocatedAmount - allocRemaining;
 
     let needed = data.totalAmount;
@@ -1952,15 +1978,15 @@ async function renderCycleCompoundRequirements(cycle, containerId) {
       displayUnit = 'mg';
     }
 
-    const sufficient = available >= needed || hasAllocations;
+    const sufficient = available >= needed || allocVialCount > 0;
 
     // Build allocation display
     let allocHtml = '';
-    if (alloc) {
+    if (allocVialCount > 0) {
       const depletionPct = allocatedAmount > 0 ? Math.round((allocUsed / allocatedAmount) * 100) : 0;
       allocHtml = `
         <div class="cycle-alloc-card">
-          <div class="cycle-alloc-header">Allocated: ${formatReqAmount(allocatedAmount)} ${displayUnit}</div>
+          <div class="cycle-alloc-header">Allocated: ${allocVialCount} vial${allocVialCount !== 1 ? 's' : ''} (${formatReqAmount(allocatedAmount)} ${displayUnit})</div>
           <div class="cycle-alloc-progress">
             <div class="cycle-alloc-progress-fill" style="width:${Math.min(depletionPct, 100)}%"></div>
           </div>
@@ -1979,7 +2005,7 @@ async function renderCycleCompoundRequirements(cycle, containerId) {
           <span class="cycle-compound-req-needed">Need: ${formatReqAmount(needed)} ${displayUnit}</span>
           <span class="cycle-compound-req-available ${sufficient ? '' : 'low'}">In Stock: ${formatReqAmount(available)} ${displayUnit}</span>
         </div>
-        ${!alloc && !sufficient ? `<div class="cycle-compound-req-deficit">Short ${formatReqAmount(needed - available)} ${displayUnit}</div>` : ''}
+        ${allocVialCount === 0 && !sufficient ? `<div class="cycle-compound-req-deficit">Short ${formatReqAmount(needed - available)} ${displayUnit}</div>` : ''}
         ${allocHtml}
       </div>`;
   }).join('');
@@ -2004,35 +2030,170 @@ async function renderCycleCompoundRequirements(cycle, containerId) {
 // CYCLE ALLOCATION UI ACTIONS
 // ═══════════════════════════════════════
 
+let _vialSelectCycleId = null;
+let _vialSelectNeeds = {};
+
 async function allocateInventoryFromUI(cycleId) {
   const cycle = allCycles.find(c => c.id === cycleId);
   if (!cycle) {
-    console.warn('[allocateUI] cycle not found:', cycleId);
     showToast('Cycle not found', 'error');
     return;
   }
 
-  if (typeof window.allocateInventoryForCycle !== 'function') {
-    console.warn('[allocateUI] allocateInventoryForCycle not available on window');
-    showToast('Allocation not available', 'error');
+  // Reconcile delivered orders first
+  if (typeof window.reconcileDeliveredOrders === 'function') {
+    await window.reconcileDeliveredOrders();
+  }
+
+  // Calculate compound needs (reuse logic from renderCycleCompoundRequirements)
+  const compoundNeeds = {};
+  if (cycle.scheduledDoses && cycle.scheduledDoses.length > 0) {
+    for (const dose of cycle.scheduledDoses) {
+      if (!dose.compoundName) continue;
+      if (!compoundNeeds[dose.compoundName]) {
+        compoundNeeds[dose.compoundName] = { unit: dose.unit, totalAmount: 0 };
+      }
+      compoundNeeds[dose.compoundName].totalAmount += (parseFloat(dose.dose) || 0);
+    }
+  } else {
+    for (const entry of (cycle.entries || [])) {
+      if (!entry.compoundName) continue;
+      const doseCount = cycleEstimateDoseCount(entry);
+      if (!compoundNeeds[entry.compoundName]) {
+        compoundNeeds[entry.compoundName] = { unit: entry.unit, totalAmount: 0 };
+      }
+      compoundNeeds[entry.compoundName].totalAmount += (parseFloat(entry.dose) || 0) * doseCount;
+    }
+  }
+
+  // Normalize needs to mg
+  for (const [name, data] of Object.entries(compoundNeeds)) {
+    if (data.unit === 'mcg') {
+      data.neededMg = data.totalAmount / 1000;
+    } else {
+      data.neededMg = data.totalAmount;
+    }
+  }
+
+  // Fetch inventory
+  const inventory = await window.api.getInventory();
+
+  // Build modal body per compound
+  let bodyHtml = '';
+  let anyVials = false;
+
+  for (const [compoundName, data] of Object.entries(compoundNeeds)) {
+    const neededMg = data.neededMg;
+    if (!neededMg || neededMg <= 0) continue;
+
+    const nameLower = compoundName.toLowerCase();
+    const stockVials = inventory
+      .filter(i => (i.compoundName || '').toLowerCase() === nameLower && i.status !== 'in-use' && (i.remainingAmount || 0) > 0)
+      .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+
+    bodyHtml += `<div class="vial-select-compound" data-compound="${escapeHtml(compoundName)}">`;
+    bodyHtml += `<div class="vial-select-heading">${escapeHtml(compoundName)} <span class="vial-select-need">(need ${formatReqAmount(neededMg)} mg)</span></div>`;
+
+    if (stockVials.length === 0) {
+      bodyHtml += `<div class="vial-select-empty">No in-stock vials available</div>`;
+    } else {
+      bodyHtml += `<div class="vial-select-list">`;
+      for (const vial of stockVials) {
+        const capDot = vial.capColor && vial.capColor !== '#000000'
+          ? `<span class="inv-cap-dot" style="background:${vial.capColor}"></span>` : '';
+        const batchStr = vial.batchNumber ? ` [${escapeHtml(vial.batchNumber)}]` : '';
+        const remaining = vial.remainingAmount || 0;
+        const total = vial.amountPerUnit || 0;
+        anyVials = true;
+
+        bodyHtml += `
+          <label class="vial-select-item">
+            <input type="checkbox" class="vial-select-cb" data-compound="${escapeHtml(compoundName)}" data-id="${vial.id}" data-mg="${remaining}">
+            ${capDot}
+            <span class="vial-select-mg">${formatReqAmount(remaining)} / ${formatReqAmount(total)} mg</span>
+            <span class="vial-select-batch">${batchStr}</span>
+          </label>`;
+      }
+      bodyHtml += `</div>`;
+    }
+
+    bodyHtml += `<div class="vial-select-subtotal" data-compound="${escapeHtml(compoundName)}">Selected: 0 / ${formatReqAmount(neededMg)} mg</div>`;
+    bodyHtml += `</div>`;
+  }
+
+  if (!anyVials) {
+    showToast('No in-stock vials available to allocate', 'error');
     return;
   }
 
-  console.log('[allocateUI] calling allocateInventoryForCycle for cycle:', cycle.id, cycle.name,
-    'entries:', cycle.entries.length, 'scheduledDoses:', (cycle.scheduledDoses || []).length);
+  _vialSelectCycleId = cycleId;
+  _vialSelectNeeds = compoundNeeds;
+
+  const body = document.getElementById('vial-select-body');
+  body.innerHTML = bodyHtml;
+
+  // Wire checkbox change handlers for live subtotals
+  body.querySelectorAll('.vial-select-cb').forEach(cb => {
+    cb.addEventListener('change', updateVialSelectSubtotals);
+  });
+
+  // Show modal
+  document.getElementById('vial-select-modal').classList.remove('hidden');
+}
+
+function updateVialSelectSubtotals() {
+  const body = document.getElementById('vial-select-body');
+  if (!body) return;
+
+  for (const [compoundName, data] of Object.entries(_vialSelectNeeds)) {
+    const neededMg = data.neededMg || 0;
+    const cbs = body.querySelectorAll(`.vial-select-cb[data-compound="${CSS.escape(compoundName)}"]`);
+    let selectedMg = 0;
+    cbs.forEach(cb => {
+      if (cb.checked) selectedMg += parseFloat(cb.dataset.mg) || 0;
+    });
+
+    const subtotal = body.querySelector(`.vial-select-subtotal[data-compound="${CSS.escape(compoundName)}"]`);
+    if (subtotal) {
+      subtotal.textContent = `Selected: ${formatReqAmount(selectedMg)} / ${formatReqAmount(neededMg)} mg`;
+      if (selectedMg >= neededMg) {
+        subtotal.classList.add('sufficient');
+        subtotal.classList.remove('short');
+      } else if (selectedMg > 0) {
+        subtotal.classList.add('short');
+        subtotal.classList.remove('sufficient');
+      } else {
+        subtotal.classList.remove('sufficient', 'short');
+      }
+    }
+  }
+}
+
+function closeVialSelectModal() {
+  document.getElementById('vial-select-modal').classList.add('hidden');
+  _vialSelectCycleId = null;
+  _vialSelectNeeds = {};
+}
+
+async function submitVialSelection() {
+  if (!_vialSelectCycleId) return;
+
+  const body = document.getElementById('vial-select-body');
+  const checked = body.querySelectorAll('.vial-select-cb:checked');
+  const vialIds = Array.from(checked).map(cb => cb.dataset.id);
+
+  if (vialIds.length === 0) {
+    showToast('No vials selected', 'error');
+    return;
+  }
 
   try {
-    const summary = await window.allocateInventoryForCycle(cycle);
-    if (summary.length === 0) {
-      showToast('No inventory available to allocate', 'error');
-      return;
-    }
-
-    const desc = summary.map(s => `${s.allocated.toFixed(1)} mg ${s.compoundName}`).join(', ');
-    showToast(`Allocated: ${desc}`, 'success');
+    const count = await window.allocateVialsToCycle(_vialSelectCycleId, vialIds);
+    showToast(`Allocated ${count} vial${count !== 1 ? 's' : ''} to cycle`, 'success');
+    closeVialSelectModal();
     renderCycleDetail();
   } catch (err) {
-    console.error('[allocateUI] error:', err);
+    console.error('[vialSelect] error:', err);
     showToast('Allocation failed: ' + err.message, 'error');
   }
 }
@@ -2042,7 +2203,14 @@ async function returnCycleInventoryFromUI(cycleId) {
 
   const returned = await window.returnCycleInventory(cycleId);
   if (returned.length > 0) {
-    const desc = returned.map(r => `${r.amount.toFixed(1)} mg ${r.compoundName}`).join(', ');
+    // Group returned vials by compound
+    const byCompound = {};
+    for (const r of returned) {
+      if (!byCompound[r.compoundName]) byCompound[r.compoundName] = { amount: 0, vials: 0 };
+      byCompound[r.compoundName].amount += r.amount;
+      byCompound[r.compoundName].vials += 1;
+    }
+    const desc = Object.entries(byCompound).map(([name, d]) => `${d.vials} vial${d.vials !== 1 ? 's' : ''} ${name}`).join(', ');
     showToast(`Returned to stock: ${desc}`, 'success');
   } else {
     showToast('No inventory to return', 'info');
@@ -2088,4 +2256,6 @@ window.renderDashboardCycles = renderDashboardCycles;
 window.renderCycleCompoundRequirements = renderCycleCompoundRequirements;
 window.autoMatchCycleDoses = autoMatchCycleDoses;
 window.allocateInventoryFromUI = allocateInventoryFromUI;
+window.closeVialSelectModal = closeVialSelectModal;
+window.submitVialSelection = submitVialSelection;
 window.returnCycleInventoryFromUI = returnCycleInventoryFromUI;

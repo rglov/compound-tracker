@@ -4709,3 +4709,95 @@ select {
   padding: 4px 8px;
   margin-top: 4px;
 }
+
+/* ═══════════════════════════════════════ */
+/* VIAL SELECTION MODAL                   */
+/* ═══════════════════════════════════════ */
+
+.vial-select-body {
+  padding: 16px 20px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.vial-select-compound {
+  margin-bottom: 16px;
+}
+
+.vial-select-compound:last-child {
+  margin-bottom: 0;
+}
+
+.vial-select-heading {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.vial-select-need {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.vial-select-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 0;
+  font-style: italic;
+}
+
+.vial-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vial-select-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.vial-select-item:hover {
+  background: var(--bg-surface-hover);
+}
+
+.vial-select-item input[type="checkbox"] {
+  accent-color: var(--accent-primary);
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.vial-select-mg {
+  font-weight: 500;
+}
+
+.vial-select-batch {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.vial-select-subtotal {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  padding: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+.vial-select-subtotal.sufficient {
+  color: var(--accent-green);
+}
+
+.vial-select-subtotal.short {
+  color: var(--accent-gold);
+}
