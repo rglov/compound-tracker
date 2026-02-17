@@ -22,7 +22,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 2.5,
     defaultUnit: 'mg',
     defaultRoute: 'subcutaneous',
-    color: '#00c853'
+    color: '#ff9800'
   },
   {
     id: 'pt-141',
@@ -33,7 +33,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 2,
     defaultUnit: 'mg',
     defaultRoute: 'subcutaneous',
-    color: '#69f0ae'
+    color: '#e040fb'
   },
   {
     id: 'cjc-1295-dac',
@@ -44,7 +44,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 192,
     defaultUnit: 'mcg',
     defaultRoute: 'subcutaneous',
-    color: '#1de9b6'
+    color: '#40c4ff'
   },
   {
     id: 'cjc-1295-no-dac',
@@ -55,7 +55,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 0.5,
     defaultUnit: 'mcg',
     defaultRoute: 'subcutaneous',
-    color: '#a7ffeb'
+    color: '#7c4dff'
   },
   {
     id: 'ipamorelin',
@@ -66,7 +66,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 2,
     defaultUnit: 'mcg',
     defaultRoute: 'subcutaneous',
-    color: '#64ffda'
+    color: '#ffab40'
   },
   {
     id: 'ghrp-6',
@@ -77,7 +77,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 0.333,
     defaultUnit: 'mcg',
     defaultRoute: 'subcutaneous',
-    color: '#b9f6ca'
+    color: '#18ffff'
   },
   {
     id: 'ghrp-2',
@@ -88,7 +88,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 0.417,
     defaultUnit: 'mcg',
     defaultRoute: 'subcutaneous',
-    color: '#ccff90'
+    color: '#f4ff81'
   },
   {
     id: 'sermorelin',
@@ -99,7 +99,117 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 0.2,
     defaultUnit: 'mcg',
     defaultRoute: 'subcutaneous',
-    color: '#f4ff81'
+    color: '#ff5252'
+  },
+  {
+    id: 'aod-9604',
+    name: 'AOD-9604 (HGH Frag 176-191)',
+    category: 'peptide',
+    halfLifeValue: 30,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.5,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#ff6e40'
+  },
+  {
+    id: 'ghk-cu',
+    name: 'GHK-Cu (Copper Peptide)',
+    category: 'peptide',
+    halfLifeValue: 4,
+    halfLifeUnit: 'hours',
+    halfLifeHours: 4,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#ff80ab'
+  },
+  {
+    id: 'epithalon',
+    name: 'Epithalon (Epitalon)',
+    category: 'peptide',
+    halfLifeValue: 30,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.5,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#b388ff'
+  },
+  {
+    id: 'dsip',
+    name: 'DSIP (Delta Sleep-Inducing Peptide)',
+    category: 'peptide',
+    halfLifeValue: 15,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.25,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#80cbc4'
+  },
+  {
+    id: 'selank',
+    name: 'Selank',
+    category: 'peptide',
+    halfLifeValue: 3,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.05,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#f48fb1'
+  },
+  {
+    id: 'semax',
+    name: 'Semax',
+    category: 'peptide',
+    halfLifeValue: 3,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.05,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#8c9eff'
+  },
+  {
+    id: 'mots-c',
+    name: 'MOTS-c',
+    category: 'peptide',
+    halfLifeValue: 4,
+    halfLifeUnit: 'hours',
+    halfLifeHours: 4,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#76ff03'
+  },
+  {
+    id: 'ss-31',
+    name: 'SS-31 (Elamipretide)',
+    category: 'peptide',
+    halfLifeValue: 4,
+    halfLifeUnit: 'hours',
+    halfLifeHours: 4,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#ffd180'
+  },
+  {
+    id: 'gonadorelin',
+    name: 'Gonadorelin (GnRH)',
+    category: 'peptide',
+    halfLifeValue: 4,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.067,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#c6ff00'
+  },
+  {
+    id: 'kisspeptin-10',
+    name: 'Kisspeptin-10',
+    category: 'peptide',
+    halfLifeValue: 4,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.067,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#ff9e80'
   },
 
   // ═══════════════════════════════════════
@@ -329,9 +439,20 @@ const COMPOUND_LIBRARY = [
     defaultRoute: 'subcutaneous',
     color: '#fff9c4'
   },
+  {
+    id: 'hgh-frag',
+    name: 'HGH Fragment 176-191',
+    category: 'hgh',
+    halfLifeValue: 30,
+    halfLifeUnit: 'minutes',
+    halfLifeHours: 0.5,
+    defaultUnit: 'mcg',
+    defaultRoute: 'subcutaneous',
+    color: '#ffe082'
+  },
 
   // ═══════════════════════════════════════
-  // GLP-1 Agonists
+  // GLP-1 / GIP Agonists
   // ═══════════════════════════════════════
   {
     id: 'semaglutide',
@@ -342,7 +463,7 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 168,
     defaultUnit: 'mg',
     defaultRoute: 'subcutaneous',
-    color: '#26c6da'
+    color: '#69f0ae'
   },
   {
     id: 'tirzepatide',
@@ -353,7 +474,51 @@ const COMPOUND_LIBRARY = [
     halfLifeHours: 120,
     defaultUnit: 'mg',
     defaultRoute: 'subcutaneous',
-    color: '#4dd0e1'
+    color: '#448aff'
+  },
+  {
+    id: 'cagrilintide',
+    name: 'Cagrilintide',
+    category: 'peptide',
+    halfLifeValue: 7,
+    halfLifeUnit: 'days',
+    halfLifeHours: 168,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#84ffff'
+  },
+  {
+    id: 'retatrutide',
+    name: 'Retatrutide',
+    category: 'peptide',
+    halfLifeValue: 6,
+    halfLifeUnit: 'days',
+    halfLifeHours: 144,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#ffe57f'
+  },
+  {
+    id: 'liraglutide',
+    name: 'Liraglutide',
+    category: 'peptide',
+    halfLifeValue: 13,
+    halfLifeUnit: 'hours',
+    halfLifeHours: 13,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#a5d6a7'
+  },
+  {
+    id: 'survodutide',
+    name: 'Survodutide',
+    category: 'peptide',
+    halfLifeValue: 6,
+    halfLifeUnit: 'days',
+    halfLifeHours: 144,
+    defaultUnit: 'mg',
+    defaultRoute: 'subcutaneous',
+    color: '#80deea'
   }
 ];
 

@@ -27,7 +27,17 @@ function createChartInstance(canvas, yLabel) {
             date: { zone: DateTime.local().zoneName }
           },
           time: {
-            tooltipFormat: 'MMM dd, yyyy HH:mm'
+            tooltipFormat: 'MMM d, yyyy HH:mm',
+            displayFormats: {
+              millisecond: 'HH:mm:ss',
+              second: 'HH:mm:ss',
+              minute: 'HH:mm',
+              hour: 'MMM d, ha',
+              day: 'MMM d',
+              week: 'MMM d',
+              month: 'MMM yyyy',
+              year: 'yyyy'
+            }
           },
           grid: { color: 'rgba(255,255,255,0.05)' },
           ticks: {
@@ -53,14 +63,7 @@ function createChartInstance(canvas, yLabel) {
       },
       plugins: {
         legend: {
-          position: 'top',
-          labels: {
-            color: '#e0e0e0',
-            usePointStyle: true,
-            pointStyle: 'circle',
-            padding: 12,
-            font: { size: 11 }
-          }
+          display: false
         },
         tooltip: {
           backgroundColor: '#2a2a3e',
@@ -168,6 +171,13 @@ function updateSingleChart(chart, datasets, rangeHours, now) {
     chart.options.scales.x.max = undefined;
   }
 
+  chart.update();
+}
+
+function toggleChartDataset(chartName, index) {
+  const chart = chartName === 'hormones' ? hormonesChart : peptidesChart;
+  if (!chart || !chart.data.datasets[index]) return;
+  chart.data.datasets[index].hidden = !chart.data.datasets[index].hidden;
   chart.update();
 }
 

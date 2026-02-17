@@ -4801,3 +4801,48 @@ select {
 .vial-select-subtotal.short {
   color: var(--accent-gold);
 }
+
+/* ═══════════════════════════════════════ */
+/* CHART TOGGLE PILLS                     */
+/* ═══════════════════════════════════════ */
+.chart-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.chart-toggle-pill {
+  font-size: 11px;
+  font-family: inherit;
+  padding: 3px 10px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1.5px solid var(--pill-color);
+  background: var(--pill-color);
+  color: #000;
+  font-weight: 600;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  line-height: 1.4;
+}
+
+.chart-toggle-pill:hover {
+  opacity: 0.85;
+}
+
+.chart-toggle-pill.inactive {
+  background: transparent;
+  color: var(--pill-color);
+  opacity: 0.5;
+}
+
+.chart-toggle-pill.inactive:hover {
+  opacity: 0.75;
+}
+
+.chart-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}

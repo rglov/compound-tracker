@@ -61,6 +61,7 @@ async function refreshDashboard() {
   // Generate chart data
   const seriesData = generateTimeSeriesData(doses, startTime, endTime);
   updateChart(seriesData, currentRangeHours);
+  renderChartToggles(seriesData);
 
   // Active compound cards
   const summaries = getActiveCompoundSummaries(doses, now);
@@ -307,6 +308,47 @@ function renderDashboardStats(doses, summaries, now) {
       <span class="dash-stat-label">Upcoming (24h)</span>
     </div>`;
 }
+
+function renderChartToggles(seriesData) {
+  const hormonesContainer = document.getElementById('chart-toggles-hormones');
+  const peptidesContainer = document.getElementById('chart-toggles-peptides');
+  if (!hormonesContainer || !peptidesContainer) return;
+
+  const hormonesEntries = [];
+  const peptidesEntries = [];
+
+  for (const [compoundId, series] of Object.entries(seriesData)) {
+    const entry = { name: series.compoundName, color: series.color };
+    if (PEPTIDE_CATEGORIES.has(series.category)) {
+      peptidesEntries.push(entry);
+    } else {
+      hormonesEntries.push(entry);
+    }
+  }
+
+  function buildPills(entries, chartName, container) {
+    if (entries.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    const chart = chartName === 'hormones' ? hormonesChart : peptidesChart;
+    container.innerHTML = entries.map((e, i) => {
+      const hidden = chart && chart.data.datasets[i] && chart.data.datasets[i].hidden;
+      const cls = 'chart-toggle-pill' + (hidden ? ' inactive' : '');
+      return `<button class="${cls}" style="--pill-color:${e.color}" onclick="toggleChartPill('${chartName}', ${i}, this)">${escapeHtml(e.name)}</button>`;
+    }).join('');
+  }
+
+  buildPills(hormonesEntries, 'hormones', hormonesContainer);
+  buildPills(peptidesEntries, 'peptides', peptidesContainer);
+}
+
+function toggleChartPill(chartName, index, btn) {
+  toggleChartDataset(chartName, index);
+  btn.classList.toggle('inactive');
+}
+
+window.toggleChartPill = toggleChartPill;
 
 function cleanupDashboard() {
   if (dashboardRefreshTimer) {
