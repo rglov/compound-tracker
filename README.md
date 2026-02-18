@@ -4,7 +4,7 @@
 
 # Compound Tracker
 
-Desktop app for tracking peptide, AAS, and HGH compound levels with pharmacokinetic decay modeling. Built with Electron.
+Web app for tracking peptide, AAS, and HGH compound levels with pharmacokinetic decay modeling.
 
 ## Prerequisites
 
@@ -19,30 +19,56 @@ cd compound-tracker
 npm install
 ```
 
-## Running
+## Running (Web)
 
 ```bash
 npm start
 ```
 
-This launches the Electron desktop app via `electron-forge`.
+Then open [http://localhost:3000](http://localhost:3000).
 
-## Building
-
-To package the app as a distributable:
+You can also run explicitly:
 
 ```bash
-npm run package
+npm run web
 ```
 
-To create platform-specific installers (zip for macOS, Linux, Windows):
+## Testing
 
 ```bash
-npm run make
+npm test
 ```
 
-Build output goes to the `out/` directory.
+## Docker
+
+Build image:
+
+```bash
+docker build -t compound-tracker-web .
+```
+
+Run container:
+
+```bash
+docker run --rm --name compound-tracker-web -p 3000:3000 -v "$(pwd)/data:/app/data" compound-tracker-web
+```
+
+Open [http://localhost:3000](http://localhost:3000).
+
+Stop container (from another terminal):
+
+```bash
+docker stop compound-tracker-web
+```
+
+Rebuild after code changes:
+
+```bash
+docker build -t compound-tracker-web .
+docker run --rm -p 3000:3000 -v "$(pwd)/data:/app/data" compound-tracker-web
+```
 
 ## Data Storage
 
-All data (doses, cycles, bloodwork, inventory, custom compounds) is stored locally via `electron-store`. No external server or account required.
+All app data is stored locally in `data/compound-tracker-data.json` (or `/app/data/compound-tracker-data.json` in Docker).  
+No external server or account required.

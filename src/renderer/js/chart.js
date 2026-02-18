@@ -27,7 +27,7 @@ function createChartInstance(canvas, yLabel) {
             date: { zone: DateTime.local().zoneName }
           },
           time: {
-            tooltipFormat: 'MMM d, yyyy HH:mm',
+            tooltipFormat: 'MMM d, yyyy',
             displayFormats: {
               millisecond: 'HH:mm:ss',
               second: 'HH:mm:ss',
@@ -123,9 +123,7 @@ function initChart() {
   );
 }
 
-function updateChart(seriesData, rangeHours) {
-  const now = Date.now();
-
+function updateChart(seriesData, windowRange) {
   const hormonesDatasets = [];
   const peptidesDatasets = [];
 
@@ -151,21 +149,18 @@ function updateChart(seriesData, rangeHours) {
   }
 
   // Update both charts
-  updateSingleChart(hormonesChart, hormonesDatasets, rangeHours, now);
-  updateSingleChart(peptidesChart, peptidesDatasets, rangeHours, now);
+  updateSingleChart(hormonesChart, hormonesDatasets, windowRange);
+  updateSingleChart(peptidesChart, peptidesDatasets, windowRange);
 }
 
-function updateSingleChart(chart, datasets, rangeHours, now) {
+function updateSingleChart(chart, datasets, windowRange) {
   if (!chart) return;
 
   chart.data.datasets = datasets;
 
-  if (rangeHours !== 'all') {
-    const rangeMs = rangeHours * 60 * 60 * 1000;
-    const earliest = now - rangeMs * 0.1;
-    const latest = now + rangeMs * 0.3;
-    chart.options.scales.x.min = earliest;
-    chart.options.scales.x.max = latest;
+  if (windowRange && typeof windowRange.min === 'number' && typeof windowRange.max === 'number') {
+    chart.options.scales.x.min = windowRange.min;
+    chart.options.scales.x.max = windowRange.max;
   } else {
     chart.options.scales.x.min = undefined;
     chart.options.scales.x.max = undefined;

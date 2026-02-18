@@ -1,5 +1,5 @@
 let dashboardRefreshTimer = null;
-let currentRangeHours = 168; // default 7 days
+let currentRangeDays = 7;
 
 // Calendar state
 let calendarMonth = new Date().getMonth();
@@ -26,7 +26,7 @@ function setupRangeButtons() {
       document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       const range = btn.dataset.range;
-      currentRangeHours = range === 'all' ? 'all' : parseInt(range);
+      currentRangeDays = range === 'all' ? 'all' : parseInt(range, 10);
       refreshDashboard();
     });
   });
@@ -38,7 +38,7 @@ async function refreshDashboard() {
 
   // Calculate chart time range
   let startTime, endTime;
-  if (currentRangeHours === 'all') {
+  if (currentRangeDays === 'all') {
     if (doses.length === 0) {
       startTime = now - 7 * 24 * 60 * 60 * 1000;
       endTime = now + 24 * 60 * 60 * 1000;
@@ -53,14 +53,14 @@ async function refreshDashboard() {
       endTime = Math.min(latestActive, now + 30 * 24 * 60 * 60 * 1000);
     }
   } else {
-    const rangeMs = currentRangeHours * 60 * 60 * 1000;
+    const rangeMs = currentRangeDays * 24 * 60 * 60 * 1000;
     startTime = now - rangeMs;
     endTime = now + rangeMs * 0.3;
   }
 
   // Generate chart data
   const seriesData = generateTimeSeriesData(doses, startTime, endTime);
-  updateChart(seriesData, currentRangeHours);
+  updateChart(seriesData, { min: startTime, max: endTime, rangeDays: currentRangeDays });
   renderChartToggles(seriesData);
 
   // Active compound cards

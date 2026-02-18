@@ -306,9 +306,11 @@ function invAdjustCompoundStockPicker(compoundName, amountPerUnit) {
   }
   // Multiple vials — let user pick by number
   const lines = vials.map((v, i) => {
+    const remaining = Number(v.remainingAmount || 0);
+    const perVial = Number(v.amountPerUnit || 0);
     const cap = v.capColor && v.capColor !== '#000000' ? ` [${v.capColor}]` : '';
     const batch = v.batchNumber ? ` batch:${v.batchNumber}` : '';
-    return `${i + 1}. ${v.remainingAmount.toFixed(1)}/${v.amountPerUnit} mg${cap}${batch}`;
+    return `${i + 1}. ${remaining.toFixed(1)}/${perVial} mg${cap}${batch}`;
   });
   const choice = prompt('Which vial to adjust?\n' + lines.join('\n') + '\n\nEnter number:');
   if (choice === null) return;
@@ -324,10 +326,11 @@ async function invAdjustCompoundStock(id) {
   const item = _invInventoryData.find(i => i.id === id);
   if (!item) return;
 
+  const current = Number(item.remainingAmount || 0);
   const newAmount = prompt(
     'Adjust remaining amount for ' + item.compoundName +
-    '\nCurrent: ' + item.remainingAmount.toFixed(1) + ' mg\nEnter new amount:',
-    item.remainingAmount.toFixed(1)
+    '\nCurrent: ' + current.toFixed(1) + ' mg\nEnter new amount:',
+    current.toFixed(1)
   );
   if (newAmount === null) return;
 
@@ -1113,7 +1116,7 @@ async function deductSuppliesForDose(compoundName, route) {
   for (const item of usageItems) {
     // Find matching supply by name (case-insensitive) and category
     const match = supplies.find(s =>
-      s.name.toLowerCase() === item.name.toLowerCase() &&
+      (s.name || '').toLowerCase() === (item.name || '').toLowerCase() &&
       s.category === item.category &&
       s.quantity > 0
     );
@@ -1156,7 +1159,7 @@ async function calculateCycleSupplyRequirements(cycle) {
         };
         // Find matching supply
         const match = supplies.find(s =>
-          s.name.toLowerCase() === item.name.toLowerCase() &&
+          (s.name || '').toLowerCase() === (item.name || '').toLowerCase() &&
           s.category === item.category
         );
         if (match) requirements[key].available = match.quantity;

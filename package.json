@@ -5,7 +5,9 @@
   "description": "Track peptide, AAS, and HGH compound levels with pharmacokinetic decay modeling",
   "main": "src/main.js",
   "scripts": {
-    "start": "electron-forge start",
+    "start": "npm run web",
+    "web": "node src/web/server.js",
+    "test": "node --test tests/*.test.js",
     "package": "electron-forge package",
     "make": "electron-forge make"
   },

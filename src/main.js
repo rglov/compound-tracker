@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const Store = require('electron-store');
+const { asArray, upsertById, updateById, deleteById, sanitizeImportData } = require('./shared/store-utils');
 
 const store = new Store({
   name: 'compound-tracker-data',
@@ -75,24 +76,19 @@ ipcMain.handle('store:get-doses', () => {
 });
 
 ipcMain.handle('store:add-dose', (_, dose) => {
-  const doses = store.get('doses', []);
-  doses.push(dose);
-  store.set('doses', doses);
+  store.set('doses', [...asArray(store.get('doses', [])), dose]);
   return { success: true };
 });
 
 ipcMain.handle('store:update-dose', (_, updated) => {
-  const doses = store.get('doses', []);
-  const idx = doses.findIndex(d => d.id === updated.id);
-  if (idx === -1) return { success: false, error: 'Dose not found' };
-  doses[idx] = { ...doses[idx], ...updated };
-  store.set('doses', doses);
+  const result = updateById(store.get('doses', []), updated.id, updated);
+  if (!result.found) return { success: false, error: 'Dose not found' };
+  store.set('doses', result.items);
   return { success: true };
 });
 
 ipcMain.handle('store:delete-dose', (_, id) => {
-  const doses = store.get('doses', []);
-  store.set('doses', doses.filter(d => d.id !== id));
+  store.set('doses', deleteById(store.get('doses', []), id));
   return { success: true };
 });
 
@@ -101,15 +97,12 @@ ipcMain.handle('store:get-custom-compounds', () => {
 });
 
 ipcMain.handle('store:add-custom-compound', (_, compound) => {
-  const compounds = store.get('customCompounds', []);
-  compounds.push(compound);
-  store.set('customCompounds', compounds);
+  store.set('customCompounds', [...asArray(store.get('customCompounds', [])), compound]);
   return { success: true };
 });
 
 ipcMain.handle('store:delete-custom-compound', (_, id) => {
-  const compounds = store.get('customCompounds', []);
-  store.set('customCompounds', compounds.filter(c => c.id !== id));
+  store.set('customCompounds', deleteById(store.get('customCompounds', []), id));
   return { success: true };
 });
 
@@ -118,15 +111,12 @@ ipcMain.handle('store:get-custom-blends', () => {
 });
 
 ipcMain.handle('store:add-custom-blend', (_, blend) => {
-  const blends = store.get('customBlends', []);
-  blends.push(blend);
-  store.set('customBlends', blends);
+  store.set('customBlends', [...asArray(store.get('customBlends', [])), blend]);
   return { success: true };
 });
 
 ipcMain.handle('store:delete-custom-blend', (_, id) => {
-  const blends = store.get('customBlends', []);
-  store.set('customBlends', blends.filter(b => b.id !== id));
+  store.set('customBlends', deleteById(store.get('customBlends', []), id));
   return { success: true };
 });
 
@@ -178,15 +168,12 @@ ipcMain.handle('store:get-bloodwork', () => {
 });
 
 ipcMain.handle('store:add-bloodwork', (_, entry) => {
-  const bloodwork = store.get('bloodwork', []);
-  bloodwork.push(entry);
-  store.set('bloodwork', bloodwork);
+  store.set('bloodwork', [...asArray(store.get('bloodwork', [])), entry]);
   return { success: true };
 });
 
 ipcMain.handle('store:delete-bloodwork', (_, id) => {
-  const bloodwork = store.get('bloodwork', []);
-  store.set('bloodwork', bloodwork.filter(b => b.id !== id));
+  store.set('bloodwork', deleteById(store.get('bloodwork', []), id));
   return { success: true };
 });
 
@@ -196,29 +183,19 @@ ipcMain.handle('store:get-inventory', () => {
 });
 
 ipcMain.handle('store:save-inventory', (_, entry) => {
-  const inventory = store.get('inventory', []);
-  const idx = inventory.findIndex(i => i.id === entry.id);
-  if (idx >= 0) {
-    inventory[idx] = entry;
-  } else {
-    inventory.push(entry);
-  }
-  store.set('inventory', inventory);
+  store.set('inventory', upsertById(store.get('inventory', []), entry));
   return { success: true };
 });
 
 ipcMain.handle('store:update-inventory', (_, { id, changes }) => {
-  const inventory = store.get('inventory', []);
-  const idx = inventory.findIndex(i => i.id === id);
-  if (idx === -1) return { success: false, error: 'Not found' };
-  Object.assign(inventory[idx], changes);
-  store.set('inventory', inventory);
+  const result = updateById(store.get('inventory', []), id, changes);
+  if (!result.found) return { success: false, error: 'Not found' };
+  store.set('inventory', result.items);
   return { success: true };
 });
 
 ipcMain.handle('store:delete-inventory', (_, id) => {
-  const inventory = store.get('inventory', []);
-  store.set('inventory', inventory.filter(i => i.id !== id));
+  store.set('inventory', deleteById(store.get('inventory', []), id));
   return { success: true };
 });
 
@@ -228,29 +205,19 @@ ipcMain.handle('store:get-supplies', () => {
 });
 
 ipcMain.handle('store:save-supply', (_, entry) => {
-  const supplies = store.get('supplies', []);
-  const idx = supplies.findIndex(s => s.id === entry.id);
-  if (idx >= 0) {
-    supplies[idx] = entry;
-  } else {
-    supplies.push(entry);
-  }
-  store.set('supplies', supplies);
+  store.set('supplies', upsertById(store.get('supplies', []), entry));
   return { success: true };
 });
 
 ipcMain.handle('store:update-supply', (_, { id, changes }) => {
-  const supplies = store.get('supplies', []);
-  const idx = supplies.findIndex(s => s.id === id);
-  if (idx === -1) return { success: false, error: 'Not found' };
-  Object.assign(supplies[idx], changes);
-  store.set('supplies', supplies);
+  const result = updateById(store.get('supplies', []), id, changes);
+  if (!result.found) return { success: false, error: 'Not found' };
+  store.set('supplies', result.items);
   return { success: true };
 });
 
 ipcMain.handle('store:delete-supply', (_, id) => {
-  const supplies = store.get('supplies', []);
-  store.set('supplies', supplies.filter(s => s.id !== id));
+  store.set('supplies', deleteById(store.get('supplies', []), id));
   return { success: true };
 });
 
@@ -260,20 +227,12 @@ ipcMain.handle('store:get-orders', () => {
 });
 
 ipcMain.handle('store:save-order', (_, entry) => {
-  const orders = store.get('orders', []);
-  const idx = orders.findIndex(o => o.id === entry.id);
-  if (idx >= 0) {
-    orders[idx] = entry;
-  } else {
-    orders.push(entry);
-  }
-  store.set('orders', orders);
+  store.set('orders', upsertById(store.get('orders', []), entry));
   return { success: true };
 });
 
 ipcMain.handle('store:delete-order', (_, id) => {
-  const orders = store.get('orders', []);
-  store.set('orders', orders.filter(o => o.id !== id));
+  store.set('orders', deleteById(store.get('orders', []), id));
   return { success: true };
 });
 
@@ -338,17 +297,9 @@ ipcMain.handle('store:export-data', () => {
 });
 
 ipcMain.handle('store:import-data', (_, data) => {
-  if (data.doses) store.set('doses', data.doses);
-  if (data.customCompounds) store.set('customCompounds', data.customCompounds);
-  if (data.customBlends) store.set('customBlends', data.customBlends);
-  if (data.cycles) store.set('cycles', data.cycles);
-  if (data.settings) store.set('settings', data.settings);
-  if (data.compoundSettings) store.set('compoundSettings', data.compoundSettings);
-  if (data.bloodwork) store.set('bloodwork', data.bloodwork);
-  if (data.inventory) store.set('inventory', data.inventory);
-  if (data.libraryOverrides) store.set('libraryOverrides', data.libraryOverrides);
-  if (data.supplies) store.set('supplies', data.supplies);
-  if (data.orders) store.set('orders', data.orders);
-  if (data.supplyUsageConfig) store.set('supplyUsageConfig', data.supplyUsageConfig);
+  const cleaned = sanitizeImportData(data);
+  for (const [key, value] of Object.entries(cleaned)) {
+    store.set(key, value);
+  }
   return { success: true };
 });

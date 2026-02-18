@@ -1,0 +1,31 @@
+module.exports = {
+  doses: [],
+  customCompounds: [],
+  customBlends: [],
+  cycles: [],
+  settings: { enabledInjectionSites: null },
+  compoundSettings: {},
+  bloodwork: [],
+  inventory: [],
+  libraryOverrides: {},
+  supplies: [],
+  orders: [],
+  supplyUsageConfig: {
+    globalDefaults: {
+      intramuscular: [
+        { category: 'needles', name: 'Drawing Needle', quantityPerDose: 1 },
+        { category: 'needles', name: 'Injection Needle', quantityPerDose: 1 },
+        { category: 'syringes', name: 'Syringe', quantityPerDose: 1 },
+        { category: 'alcohol-swabs', name: 'Alcohol Swab', quantityPerDose: 2 }
+      ],
+      subcutaneous: [
+        { category: 'syringes', name: 'Insulin Syringe', quantityPerDose: 1 },
+        { category: 'alcohol-swabs', name: 'Alcohol Swab', quantityPerDose: 2 }
+      ],
+      oral: [],
+      intravenous: [],
+      topical: []
+    },
+    compoundOverrides: {}
+  }
+};
