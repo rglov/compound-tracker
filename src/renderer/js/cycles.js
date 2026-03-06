@@ -6,6 +6,7 @@ let allCycles = [];
 let currentBuilderCycle = null; // cycle being created/edited
 let currentDetailCycleId = null;
 let builderEntryCounter = 0;
+let _cyclePickerCustomData = { compounds: [], blends: [] };
 
 const FREQUENCY_LABELS = {
   daily: 'Daily',
@@ -477,24 +478,27 @@ function renderBuilderTimeline() {
     </div>`;
 }
 
-function addBuilderEntry() {
+async function addBuilderEntry() {
   // Open a compound picker — use a simple select modal approach
   document.getElementById('cycle-compound-picker').classList.remove('hidden');
-  populateCycleCompoundSelect();
+  await populateCycleCompoundSelect();
 }
 
 function closeCycleCompoundPicker() {
   document.getElementById('cycle-compound-picker').classList.add('hidden');
 }
 
-function populateCycleCompoundSelect() {
+async function populateCycleCompoundSelect() {
   const select = document.getElementById('cycle-compound-select');
   select.innerHTML = '<option value="">Select a compound...</option>';
 
-  // Group by type from LIBRARY_DATA
+  // Fetch custom compounds and blends
+  _cyclePickerCustomData.compounds = await window.api.getCustomCompounds();
+  _cyclePickerCustomData.blends = await window.api.getCustomBlends();
+
+  // Group by type from LIBRARY_DATA (including Blends)
   const groups = {};
   for (const c of LIBRARY_DATA) {
-    if (c.type === 'Blend') continue;
     const cat = c.type || 'Other';
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(c);
@@ -521,26 +525,77 @@ function populateCycleCompoundSelect() {
     }
     select.appendChild(grp);
   }
+
+  // Add custom compounds
+  if (_cyclePickerCustomData.compounds.length > 0) {
+    const grp = document.createElement('optgroup');
+    grp.label = 'Custom Compounds';
+    for (const c of _cyclePickerCustomData.compounds) {
+      const opt = document.createElement('option');
+      opt.value = 'custom:' + c.id;
+      opt.textContent = c.name;
+      grp.appendChild(opt);
+    }
+    select.appendChild(grp);
+  }
+
+  // Add custom blends
+  if (_cyclePickerCustomData.blends.length > 0) {
+    const grp = document.createElement('optgroup');
+    grp.label = 'Custom Blends';
+    for (const c of _cyclePickerCustomData.blends) {
+      const opt = document.createElement('option');
+      opt.value = 'customblend:' + c.id;
+      opt.textContent = c.name;
+      grp.appendChild(opt);
+    }
+    select.appendChild(grp);
+  }
 }
 
 function confirmAddCompound() {
   const select = document.getElementById('cycle-compound-select');
-  const name = select.value;
-  if (!name) return;
+  const val = select.value;
+  if (!val) return;
 
-  // Find compound data
-  const libEntry = LIBRARY_DATA.find(c => c.name === name);
-  const builtIn = COMPOUND_LIBRARY.find(c => c.name === name);
+  let name, color, halfLife, category, unit, route, compoundId;
 
-  const typeConf = libEntry ? (LIBRARY_TYPE_CONFIG[libEntry.type] || LIBRARY_TYPE_CONFIG['Peptide']) : null;
-  const color = typeConf ? typeConf.color : (builtIn ? builtIn.color : '#888');
-  const halfLife = libEntry ? (libEntry.halfLifeHours || 0) : (builtIn ? builtIn.halfLifeHours : 0);
-  const category = libEntry ? (LIB_TYPE_TO_CATEGORY[libEntry.type] || 'peptide') : (builtIn ? builtIn.category : 'peptide');
-  const unit = libEntry ? guessDefaultUnit(libEntry) : (builtIn ? builtIn.defaultUnit : 'mcg');
-  const route = libEntry ? guessDefaultRoute(libEntry) : (builtIn ? builtIn.defaultRoute : 'subcutaneous');
+  if (val.startsWith('custom:')) {
+    const id = val.slice('custom:'.length);
+    const c = _cyclePickerCustomData.compounds.find(x => x.id === id);
+    if (!c) return;
+    name = c.name;
+    color = '#888';
+    halfLife = c.halfLifeHours || 0;
+    category = c.category || 'peptide';
+    unit = c.defaultUnit || 'mcg';
+    route = c.defaultRoute || 'subcutaneous';
+    compoundId = c.id;
+  } else if (val.startsWith('customblend:')) {
+    const id = val.slice('customblend:'.length);
+    const c = _cyclePickerCustomData.blends.find(x => x.id === id);
+    if (!c) return;
+    name = c.name;
+    color = LIBRARY_TYPE_CONFIG['Blend']?.color || '#ffd54f';
+    halfLife = c.halfLifeHours || 0;
+    category = 'blend';
+    unit = 'mcg';
+    route = 'subcutaneous';
+    compoundId = c.id;
+  } else {
+    // Library or builtin compound
+    const libEntry = LIBRARY_DATA.find(c => c.name === val);
+    const builtIn = COMPOUND_LIBRARY.find(c => c.name === val);
 
-  // Use compound name as compoundId (consistent with library-sourced doses)
-  const compoundId = builtIn ? builtIn.id : name;
+    const typeConf = libEntry ? (LIBRARY_TYPE_CONFIG[libEntry.type] || LIBRARY_TYPE_CONFIG['Peptide']) : null;
+    name = val;
+    color = typeConf ? typeConf.color : (builtIn ? builtIn.color : '#888');
+    halfLife = libEntry ? (libEntry.halfLifeHours || 0) : (builtIn ? builtIn.halfLifeHours : 0);
+    category = libEntry ? (LIB_TYPE_TO_CATEGORY[libEntry.type] || 'peptide') : (builtIn ? builtIn.category : 'peptide');
+    unit = libEntry ? guessDefaultUnit(libEntry) : (builtIn ? builtIn.defaultUnit : 'mcg');
+    route = libEntry ? guessDefaultRoute(libEntry) : (builtIn ? builtIn.defaultRoute : 'subcutaneous');
+    compoundId = builtIn ? builtIn.id : val;
+  }
 
   currentBuilderCycle.entries.push({
     id: generateId(),
