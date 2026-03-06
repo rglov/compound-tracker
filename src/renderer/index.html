@@ -334,8 +334,11 @@
           <button class="modal-close" onclick="closeCycleCompoundPicker()">&times;</button>
         </div>
         <div class="form-section">
-          <label class="form-label" for="cycle-compound-select">Compound</label>
-          <select id="cycle-compound-select">
+          <div class="compound-search-wrap" style="position:relative;margin-bottom:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="cycle-compound-search" placeholder="Search compounds..." autocomplete="off" style="padding-left:32px;width:100%;box-sizing:border-box;" oninput="filterCycleCompoundSelect(this.value)">
+          </div>
+          <select id="cycle-compound-select" size="8" style="width:100%;height:auto;">
             <option value="">Select a compound...</option>
           </select>
         </div>
@@ -664,7 +667,11 @@
 
         <div class="form-section">
           <label class="form-label" for="compound-select">Compound</label>
-          <select id="compound-select" required>
+          <div class="compound-search-wrap" style="position:relative;margin-bottom:8px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input type="text" id="dose-compound-search" placeholder="Search by name or alias..." autocomplete="off" style="padding-left:32px;width:100%;box-sizing:border-box;" oninput="filterDoseCompoundSelect(this.value)">
+          </div>
+          <select id="compound-select" required size="6" style="width:100%;height:auto;">
             <option value="">Select a compound...</option>
           </select>
           <div id="compound-info" class="compound-info hidden"></div>

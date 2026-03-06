@@ -1,6 +1,7 @@
 let allCompoundsForSelect = [];
 let allBlendsForSelect = [];
 let currentLogCategory = 'all';
+let currentDoseSearchTerm = '';
 let pendingCycleDose = null; // { cycleId, scheduledDoseId } when logging from cycle
 
 // Map LIBRARY_DATA type → dose logger category
@@ -30,9 +31,34 @@ function setupCategoryTabs() {
       document.querySelectorAll('.cat-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
       currentLogCategory = tab.dataset.category;
+      // Clear search when switching categories
+      currentDoseSearchTerm = '';
+      const searchEl = document.getElementById('dose-compound-search');
+      if (searchEl) searchEl.value = '';
       populateCompoundDropdown();
     });
   });
+}
+
+function filterDoseCompoundSelect(term) {
+  currentDoseSearchTerm = term;
+  populateCompoundDropdown();
+}
+
+function compoundMatchesTerm(compound, lterm) {
+  if (!lterm) return true;
+  // Search name
+  if (compound.name.toLowerCase().includes(lterm)) return true;
+  // Search tags and category
+  if ((compound.category || '').toLowerCase().includes(lterm)) return true;
+  // Search LIBRARY_DATA notes and tags for aliases
+  const libEntry = LIBRARY_DATA.find(c => c.name === compound.name);
+  if (libEntry) {
+    if ((libEntry.notes || '').toLowerCase().includes(lterm)) return true;
+    if ((libEntry.tags || []).some(t => t.toLowerCase().includes(lterm))) return true;
+    if ((libEntry.benefits || []).some(b => b.toLowerCase().includes(lterm))) return true;
+  }
+  return false;
 }
 
 async function refreshCompoundSelect() {
@@ -121,9 +147,11 @@ function populateCompoundDropdown() {
   const select = document.getElementById('compound-select');
   select.innerHTML = '<option value="">Select a compound...</option>';
 
+  const lterm = currentDoseSearchTerm.toLowerCase().trim();
+
   if (currentLogCategory === 'blend') {
     // Library blends
-    const libBlends = allCompoundsForSelect.filter(c => c.isLibraryBlend);
+    const libBlends = allCompoundsForSelect.filter(c => c.isLibraryBlend && compoundMatchesTerm(c, lterm));
     if (libBlends.length > 0) {
       const grp = document.createElement('optgroup');
       grp.label = 'Library Blends';
@@ -136,10 +164,11 @@ function populateCompoundDropdown() {
       select.appendChild(grp);
     }
     // Custom blends
-    if (allBlendsForSelect.length > 0) {
+    const filteredCustomBlends = allBlendsForSelect.filter(b => !lterm || b.name.toLowerCase().includes(lterm));
+    if (filteredCustomBlends.length > 0) {
       const grp = document.createElement('optgroup');
       grp.label = 'Custom Blends';
-      for (const blend of allBlendsForSelect) {
+      for (const blend of filteredCustomBlends) {
         const opt = document.createElement('option');
         opt.value = 'blend:' + blend.id;
         opt.textContent = blend.name;
@@ -147,23 +176,30 @@ function populateCompoundDropdown() {
       }
       select.appendChild(grp);
     }
-    if (libBlends.length === 0 && allBlendsForSelect.length === 0) {
+    if (libBlends.length === 0 && filteredCustomBlends.length === 0) {
       const opt = document.createElement('option');
       opt.value = '';
       opt.disabled = true;
-      opt.textContent = 'No blends available';
+      opt.textContent = lterm ? `No blends match "${currentDoseSearchTerm}"` : 'No blends available';
       select.appendChild(opt);
     }
   } else if (currentLogCategory === 'all') {
-    // Show all compounds grouped by type
+    // Show all compounds grouped by type, filtered by search
     const groups = {};
-    const filtered = allCompoundsForSelect.filter(c => !c.isLibraryBlend);
+    const filtered = allCompoundsForSelect.filter(c => !c.isLibraryBlend && compoundMatchesTerm(c, lterm));
     for (const compound of filtered) {
       const cat = compound.category || 'other';
       if (!groups[cat]) groups[cat] = [];
       groups[cat].push(compound);
     }
     const catLabels = { peptide: 'Peptides', aas: 'AAS / Hormones', hgh: 'HGH', supplement: 'Supplements', other: 'Other' };
+    if (Object.keys(groups).length === 0 && lterm) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.disabled = true;
+      opt.textContent = `No compounds match "${currentDoseSearchTerm}"`;
+      select.appendChild(opt);
+    }
     for (const [cat, compounds] of Object.entries(groups)) {
       const grp = document.createElement('optgroup');
       grp.label = catLabels[cat] || cat;
@@ -176,7 +212,16 @@ function populateCompoundDropdown() {
       select.appendChild(grp);
     }
   } else {
-    const filtered = allCompoundsForSelect.filter(c => c.category === currentLogCategory && !c.isLibraryBlend);
+    const filtered = allCompoundsForSelect.filter(c =>
+      c.category === currentLogCategory && !c.isLibraryBlend && compoundMatchesTerm(c, lterm)
+    );
+    if (filtered.length === 0 && lterm) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.disabled = true;
+      opt.textContent = `No compounds match "${currentDoseSearchTerm}"`;
+      select.appendChild(opt);
+    }
     for (const compound of filtered) {
       const opt = document.createElement('option');
       opt.value = compound.id;
@@ -226,10 +271,14 @@ function setupLogDoseModal() {
 }
 
 function openLogDoseModal() {
+  currentDoseSearchTerm = '';
+  const searchEl = document.getElementById('dose-compound-search');
+  if (searchEl) { searchEl.value = ''; }
   refreshCompoundSelect();
   populateLocationDropdown(document.getElementById('dose-location'), '');
   document.getElementById('dose-datetime').value = toLocalDatetimeValue();
   document.getElementById('log-dose-modal').classList.remove('hidden');
+  setTimeout(() => { if (searchEl) searchEl.focus(); }, 50);
 }
 
 async function openLogDoseModalFromCycle(cycleId, scheduledDoseId, compoundName, doseAmount, unit, route, scheduledAt, cycleName) {
@@ -281,6 +330,9 @@ async function openLogDoseModalFromCycle(cycleId, scheduledDoseId, compoundName,
 function closeLogDoseModal() {
   document.getElementById('log-dose-modal').classList.add('hidden');
   pendingCycleDose = null;
+  currentDoseSearchTerm = '';
+  const searchEl = document.getElementById('dose-compound-search');
+  if (searchEl) searchEl.value = '';
 }
 
 function setupDoseForm() {
@@ -427,3 +479,4 @@ async function deductFromInventory(compoundName, amount) {
 window.openLogDoseModal = openLogDoseModal;
 window.openLogDoseModalFromCycle = openLogDoseModalFromCycle;
 window.closeLogDoseModal = closeLogDoseModal;
+window.filterDoseCompoundSelect = filterDoseCompoundSelect;

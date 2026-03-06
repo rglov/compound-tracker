@@ -7,6 +7,7 @@ let currentBuilderCycle = null; // cycle being created/edited
 let currentDetailCycleId = null;
 let builderEntryCounter = 0;
 let _cyclePickerCustomData = { compounds: [], blends: [] };
+let _cyclePickerAllOptions = []; // [{value, label, group, searchStr}]
 
 const FREQUENCY_LABELS = {
   daily: 'Daily',
@@ -482,19 +483,34 @@ async function addBuilderEntry() {
   // Open a compound picker — use a simple select modal approach
   document.getElementById('cycle-compound-picker').classList.remove('hidden');
   await populateCycleCompoundSelect();
+  const searchEl = document.getElementById('cycle-compound-search');
+  if (searchEl) { searchEl.value = ''; searchEl.focus(); }
 }
 
 function closeCycleCompoundPicker() {
   document.getElementById('cycle-compound-picker').classList.add('hidden');
+  const searchEl = document.getElementById('cycle-compound-search');
+  if (searchEl) searchEl.value = '';
+}
+
+function buildCompoundSearchStr(name, libEntry) {
+  // Build a string containing name + aliases from notes/tags/benefits
+  const parts = [name];
+  if (libEntry) {
+    if (libEntry.notes) parts.push(libEntry.notes);
+    if (libEntry.tags) parts.push(...libEntry.tags);
+    if (libEntry.benefits) parts.push(...libEntry.benefits);
+  }
+  return parts.join(' ').toLowerCase();
 }
 
 async function populateCycleCompoundSelect() {
-  const select = document.getElementById('cycle-compound-select');
-  select.innerHTML = '<option value="">Select a compound...</option>';
-
   // Fetch custom compounds and blends
   _cyclePickerCustomData.compounds = await window.api.getCustomCompounds();
   _cyclePickerCustomData.blends = await window.api.getCustomBlends();
+
+  // Build flat option list with search strings
+  _cyclePickerAllOptions = [];
 
   // Group by type from LIBRARY_DATA (including Blends)
   const groups = {};
@@ -515,42 +531,90 @@ async function populateCycleCompoundSelect() {
   }
 
   for (const [type, compounds] of Object.entries(groups)) {
-    const grp = document.createElement('optgroup');
-    grp.label = type + 's';
     for (const c of compounds) {
+      _cyclePickerAllOptions.push({
+        value: c.name,
+        label: c.name,
+        group: type + 's',
+        searchStr: buildCompoundSearchStr(c.name, c)
+      });
+    }
+  }
+
+  for (const c of _cyclePickerCustomData.compounds) {
+    _cyclePickerAllOptions.push({
+      value: 'custom:' + c.id,
+      label: c.name,
+      group: 'Custom Compounds',
+      searchStr: (c.name + ' ' + (c.category || '')).toLowerCase()
+    });
+  }
+
+  for (const c of _cyclePickerCustomData.blends) {
+    _cyclePickerAllOptions.push({
+      value: 'customblend:' + c.id,
+      label: c.name,
+      group: 'Custom Blends',
+      searchStr: (c.name + ' blend').toLowerCase()
+    });
+  }
+
+  renderCycleCompoundSelect('');
+}
+
+function renderCycleCompoundSelect(term) {
+  const select = document.getElementById('cycle-compound-select');
+  select.innerHTML = '';
+  const lterm = term.toLowerCase().trim();
+
+  const filtered = lterm
+    ? _cyclePickerAllOptions.filter(o => o.searchStr.includes(lterm) || o.label.toLowerCase().includes(lterm))
+    : _cyclePickerAllOptions;
+
+  if (filtered.length === 0) {
+    const opt = document.createElement('option');
+    opt.value = '';
+    opt.textContent = 'No compounds match "' + term + '"';
+    opt.disabled = true;
+    select.appendChild(opt);
+    return;
+  }
+
+  // Group options
+  const groupMap = {};
+  for (const o of filtered) {
+    if (!groupMap[o.group]) groupMap[o.group] = [];
+    groupMap[o.group].push(o);
+  }
+
+  // If searching, add a blank first option; if not, add placeholder
+  if (!lterm) {
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = 'Select a compound...';
+    select.appendChild(blank);
+  }
+
+  for (const [group, opts] of Object.entries(groupMap)) {
+    const grp = document.createElement('optgroup');
+    grp.label = group;
+    for (const o of opts) {
       const opt = document.createElement('option');
-      opt.value = c.name;
-      opt.textContent = c.name;
+      opt.value = o.value;
+      opt.textContent = o.label;
       grp.appendChild(opt);
     }
     select.appendChild(grp);
   }
 
-  // Add custom compounds
-  if (_cyclePickerCustomData.compounds.length > 0) {
-    const grp = document.createElement('optgroup');
-    grp.label = 'Custom Compounds';
-    for (const c of _cyclePickerCustomData.compounds) {
-      const opt = document.createElement('option');
-      opt.value = 'custom:' + c.id;
-      opt.textContent = c.name;
-      grp.appendChild(opt);
-    }
-    select.appendChild(grp);
+  // Auto-select first result when searching
+  if (lterm && filtered.length > 0) {
+    select.value = filtered[0].value;
   }
+}
 
-  // Add custom blends
-  if (_cyclePickerCustomData.blends.length > 0) {
-    const grp = document.createElement('optgroup');
-    grp.label = 'Custom Blends';
-    for (const c of _cyclePickerCustomData.blends) {
-      const opt = document.createElement('option');
-      opt.value = 'customblend:' + c.id;
-      opt.textContent = c.name;
-      grp.appendChild(opt);
-    }
-    select.appendChild(grp);
-  }
+function filterCycleCompoundSelect(term) {
+  renderCycleCompoundSelect(term);
 }
 
 function confirmAddCompound() {
@@ -2294,6 +2358,7 @@ window.updateBuilderEntry = updateBuilderEntry;
 window.toggleOnOff = toggleOnOff;
 window.confirmAddCompound = confirmAddCompound;
 window.closeCycleCompoundPicker = closeCycleCompoundPicker;
+window.filterCycleCompoundSelect = filterCycleCompoundSelect;
 window.saveCycleAsPlan = saveCycleAsPlan;
 window.startCycleFromBuilder = startCycleFromBuilder;
 window.saveActiveCycleEdits = saveActiveCycleEdits;
