@@ -267,8 +267,9 @@ async function openLogDoseModalFromCycle(cycleId, scheduledDoseId, compoundName,
   document.getElementById('dose-route').value = route || 'subcutaneous';
   populateLocationDropdown(document.getElementById('dose-location'), '');
 
-  // Set datetime to now (actual time of administration)
-  document.getElementById('dose-datetime').value = toLocalDatetimeValue();
+  // Set datetime to the scheduled dose time (user can adjust if needed)
+  const scheduledDate = scheduledAt ? new Date(scheduledAt) : new Date();
+  document.getElementById('dose-datetime').value = toLocalDatetimeValue(scheduledDate);
 
   // Pre-fill notes with cycle name
   document.getElementById('dose-notes').value = '[Cycle: ' + (cycleName || '') + ']';
