@@ -2168,7 +2168,7 @@ function getFilteredLibrary() {
     }
 
     return true;
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function getAllTags() {
