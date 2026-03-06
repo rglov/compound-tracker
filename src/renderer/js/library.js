@@ -1729,6 +1729,170 @@ Special Instructions:
     sideEffects: ['Diarrhea', 'Increased Appetite', 'Insomnia', 'Nausea', 'Stomach Upset']
   },
   {
+    name: 'CJC-1295 (no DAC) / Mod GRF 1-29',
+    halfLifeHours: 0.5,
+    type: 'Peptide',
+    goodWith: ['Ipamorelin', 'GHRP-6', 'GHRP-2'],
+    notGoodWith: ['Sermorelin', 'Tesamorelin', 'CJC-1295'],
+    benefits: ['Bone Health', 'Cognitive Enhancement', 'Energy Boost', 'Immune Support', 'Muscle Growth', 'Sleep Improvement', 'Wound Healing'],
+    tags: ['Muscles', 'Sleep', 'Longevity'],
+    protocols: `Treatment Length: 30 days
+Timing: Wait 2-3 hours after eating, don't eat for 30 minutes after injection
+
+SQ (Subcutaneous):
+• 100 mcg 2-3 times daily
+• 200 mcg nightly, 5 nights on/2 nights off
+• 100-200 mcg at bedtime to pulse GH release
+
+Stacking - CJC-1295 no DAC + Ipamorelin:
+• 200 mcg/200 mcg nightly, 5 nights on/2 nights off
+• 100 mcg/100 mcg is more cost-effective with only marginally less benefit
+• Synergistic GHRH + GHRP combination
+
+Special Instructions:
+• Modified GRF 1-29 — short-acting GHRH analog without Drug Affinity Complex
+• Half-life: ~30 minutes (vs 6-8 days for CJC-1295 DAC)
+• Pulses mimic the natural GH release pattern
+• Do not stack with Tesamorelin, Sermorelin, or CJC-1295 DAC (all GHRH analogs)`,
+    notes: 'Also known as Mod GRF 1-29 or Modified GRF (1-29). Short-acting GHRH analog. Half-life ~30 minutes. Best combined with a GHRP (e.g. Ipamorelin) for synergistic GH release.',
+    sideEffects: ['Decreased Insulin Sensitivity', 'Lethargy', 'Numbness', 'Tingling', 'Tiredness', 'Water Retention']
+  },
+  {
+    name: 'Gonadorelin (GnRH)',
+    halfLifeHours: 0.067,
+    type: 'Peptide',
+    goodWith: ['Kisspeptin-10'],
+    notGoodWith: [],
+    benefits: ['Fertility', 'Hormone Regulation', 'Libido', 'Testosterone Support'],
+    tags: ['Fertility', 'Hormones', 'TRT Support'],
+    protocols: `Treatment Length: Ongoing during TRT or fertility protocols
+
+SQ (Subcutaneous) — TRT Adjunct (testicular preservation):
+• 100 mcg 2-3 times weekly
+• 200 mcg twice weekly
+
+SQ — Fertility / HPT Axis Stimulation:
+• 25-100 mcg 2-3 times weekly
+• Pulsatile dosing via pump mimics natural hypothalamic release
+
+Special Instructions:
+• Gonadotropin-Releasing Hormone (GnRH) — stimulates LH and FSH release
+• Used to maintain testicular function and fertility during TRT
+• Very short half-life; pulsatile administration is most physiologic
+• Can be used as an hCG alternative to prevent testicular atrophy`,
+    notes: 'Gonadotropin-Releasing Hormone (GnRH). Used in TRT to preserve testicular size and fertility by stimulating the HPT axis. Short half-life (~4 minutes). Sometimes preferred over hCG as it works upstream on the pituitary.',
+    sideEffects: ['Flushing', 'Headache', 'Injection Site Reactions', 'Mood Changes', 'Nausea']
+  },
+  {
+    name: 'Kisspeptin-10',
+    halfLifeHours: 0.067,
+    type: 'Peptide',
+    goodWith: ['Gonadorelin (GnRH)'],
+    notGoodWith: [],
+    benefits: ['Fertility', 'Hormone Regulation', 'Libido', 'Mood Enhancement', 'Testosterone Support'],
+    tags: ['Fertility', 'Hormones', 'Libido'],
+    protocols: `Treatment Length: Cyclically or ongoing
+
+SQ (Subcutaneous):
+• 25-100 mcg once daily
+• 50 mcg at bedtime for hormonal support
+• 25 mcg 2x daily (some protocols)
+
+Special Instructions:
+• Upstream regulator of the HPT axis — triggers GnRH release from the hypothalamus
+• Potent stimulator of LH, FSH, and downstream testosterone production
+• Used to support fertility, libido, and hormone regulation
+• Can be combined with Gonadorelin for complementary HPT axis stimulation`,
+    notes: 'Endogenous neuropeptide that stimulates GnRH release from the hypothalamus. Acts upstream of the HPT axis. Used for hypogonadism, fertility support, and libido. Half-life ~4 minutes.',
+    sideEffects: ['Flushing', 'Headache', 'Injection Site Reactions', 'Nausea']
+  },
+  {
+    name: 'Cagrilintide',
+    halfLifeHours: 168,
+    type: 'Peptide',
+    goodWith: ['Semaglutide'],
+    notGoodWith: [],
+    benefits: ['Appetite Suppression', 'Blood Sugar Regulation', 'Body Composition', 'Fat Loss', 'Metabolism', 'Weight Loss'],
+    tags: ['Weight Loss'],
+    protocols: `Titration Schedule (Weekly SQ Injection):
+
+• Week 1-4: 0.25 mg once weekly
+• Week 5-8: 0.5 mg once weekly
+• Week 9-12: 1.0 mg once weekly
+• Week 13-16: 1.7 mg once weekly (if tolerated)
+• Week 17+: 2.4 mg once weekly (target maintenance dose)
+
+CagriSema (Cagrilintide + Semaglutide):
+• Both agents titrated simultaneously per individual tolerability
+• Phase 3 trials showing superior weight loss vs either agent alone
+
+General Guidelines:
+• Inject subcutaneously in abdomen, thigh, or upper arm
+• Same day each week
+• Titrate slowly to minimize GI side effects`,
+    notes: 'Long-acting amylin analogue developed by Novo Nordisk. Phase 3 trials underway. Often combined with semaglutide as "CagriSema." Amylin is co-secreted with insulin and regulates postprandial glucose and satiety signaling.',
+    sideEffects: ['Constipation', 'Diarrhea', 'Dizziness', 'Fatigue', 'Headache', 'Nausea', 'Stomach Upset', 'Vomiting']
+  },
+  {
+    name: 'Liraglutide',
+    halfLifeHours: 13,
+    type: 'Peptide',
+    goodWith: [],
+    notGoodWith: ['Semaglutide', 'Tirzepatide', 'Retatrutide', 'Survodutide'],
+    benefits: ['Appetite Suppression', 'Blood Sugar Regulation', 'Body Composition', 'Cardiovascular Health', 'Diabetes Management', 'Fat Loss', 'Weight Loss'],
+    tags: ['Weight Loss'],
+    protocols: `Titration Schedule (Daily SQ Injection):
+
+Saxenda (Weight Management):
+• Week 1: 0.6 mg once daily
+• Week 2: 1.2 mg once daily
+• Week 3: 1.8 mg once daily
+• Week 4: 2.4 mg once daily
+• Week 5+: 3.0 mg once daily (maintenance)
+
+Victoza (T2 Diabetes):
+• Start: 0.6 mg daily for 1 week
+• Maintenance: 1.2 mg daily (can increase to 1.8 mg)
+
+General Guidelines:
+• Inject subcutaneously in abdomen, thigh, or upper arm
+• Can be injected at any time of day, with or without food
+• Daily dosing (unlike once-weekly semaglutide)
+• Do not combine with other GLP-1 receptor agonists`,
+    notes: 'GLP-1 receptor agonist. Brand names: Victoza (T2D), Saxenda (obesity). Once-daily injection. Predates semaglutide; average ~8% body weight loss in trials. Contraindicated with personal/family history of medullary thyroid cancer.',
+    sideEffects: ['Constipation', 'Diarrhea', 'Dizziness', 'Fatigue', 'Gallbladder Issues', 'Headache', 'Increased Heart Rate', 'Loss of Appetite', 'Nausea', 'Pancreatitis Risk', 'Stomach Upset', 'Vomiting']
+  },
+  {
+    name: 'Survodutide',
+    halfLifeHours: 144,
+    type: 'Peptide',
+    goodWith: [],
+    notGoodWith: ['Semaglutide', 'Tirzepatide', 'Liraglutide', 'Retatrutide'],
+    benefits: ['Appetite Suppression', 'Blood Sugar Regulation', 'Body Composition', 'Fat Loss', 'Liver Health', 'Metabolism', 'Weight Loss'],
+    tags: ['Weight Loss'],
+    protocols: `Titration Schedule (Weekly SQ Injection):
+
+• Week 1-4: 0.3 mg once weekly
+• Week 5-8: 0.6 mg once weekly
+• Week 9-12: 1.2 mg once weekly
+• Week 13-16: 2.4 mg once weekly
+• Week 17+: 4.8 mg once weekly (maximum, if tolerated)
+
+General Guidelines:
+• Inject subcutaneously in abdomen, thigh, or upper arm
+• Same day each week
+• Titrate slowly to minimize GI side effects
+
+Important Warnings:
+• Dual GLP-1/glucagon receptor agonist (Boehringer Ingelheim)
+• Currently in Phase 3 clinical trials
+• Do not combine with other GLP-1 receptor agonists
+• Glucagon receptor activity provides additional metabolic and liver benefits
+• Monitor for pancreatitis symptoms`,
+    notes: 'Dual GLP-1/glucagon receptor agonist developed by Boehringer Ingelheim. Phase 3 trials ongoing. Glucagon receptor agonism adds liver fat reduction (MASLD/MASH) beyond what GLP-1 alone provides. Weekly injection.',
+    sideEffects: ['Constipation', 'Diarrhea', 'Dizziness', 'Fatigue', 'Gallbladder Issues', 'Headache', 'Increased Heart Rate', 'Nausea', 'Pancreatitis Risk', 'Stomach Upset', 'Vomiting']
+  },
+  {
     name: 'KLOW',
     halfLifeHours: 2,
     type: 'Blend',

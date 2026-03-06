@@ -15,7 +15,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'tb-500',
-    name: 'TB-500 (Thymosin Beta-4)',
+    name: 'TB-500',
     category: 'peptide',
     halfLifeValue: 2.5,
     halfLifeUnit: 'hours',
@@ -37,7 +37,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'cjc-1295-dac',
-    name: 'CJC-1295 DAC',
+    name: 'CJC-1295',
     category: 'peptide',
     halfLifeValue: 8,
     halfLifeUnit: 'days',
@@ -103,7 +103,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'aod-9604',
-    name: 'AOD-9604 (HGH Frag 176-191)',
+    name: 'AOD-9604',
     category: 'peptide',
     halfLifeValue: 30,
     halfLifeUnit: 'minutes',
@@ -114,7 +114,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'ghk-cu',
-    name: 'GHK-Cu (Copper Peptide)',
+    name: 'GHK-Cu',
     category: 'peptide',
     halfLifeValue: 4,
     halfLifeUnit: 'hours',
@@ -125,7 +125,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'epithalon',
-    name: 'Epithalon (Epitalon)',
+    name: 'Epitalon',
     category: 'peptide',
     halfLifeValue: 30,
     halfLifeUnit: 'minutes',
@@ -136,7 +136,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'dsip',
-    name: 'DSIP (Delta Sleep-Inducing Peptide)',
+    name: 'DSIP',
     category: 'peptide',
     halfLifeValue: 15,
     halfLifeUnit: 'minutes',
@@ -180,7 +180,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'ss-31',
-    name: 'SS-31 (Elamipretide)',
+    name: 'SS-31',
     category: 'peptide',
     halfLifeValue: 4,
     halfLifeUnit: 'hours',
@@ -419,7 +419,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'mk-677',
-    name: 'MK-677 (Ibutamoren)',
+    name: 'Ibutamoren (MK-677)',
     category: 'hgh',
     halfLifeValue: 24,
     halfLifeUnit: 'hours',
@@ -441,7 +441,7 @@ const COMPOUND_LIBRARY = [
   },
   {
     id: 'hgh-frag',
-    name: 'HGH Fragment 176-191',
+    name: 'Frag 176-191',
     category: 'hgh',
     halfLifeValue: 30,
     halfLifeUnit: 'minutes',
