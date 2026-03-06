@@ -68,9 +68,27 @@ async function refreshCompoundSelect() {
     isLibraryBlend: true
   }));
 
+  // Add COMPOUND_LIBRARY entries not covered by LIBRARY_DATA
+  const libNames = new Set(LIBRARY_DATA.map(c => c.name.toLowerCase()));
+  const builtinExtra = COMPOUND_LIBRARY
+    .filter(c => !libNames.has(c.name.toLowerCase()))
+    .map(c => ({
+      id: c.id,
+      name: c.name,
+      category: c.category || 'peptide',
+      halfLifeHours: c.halfLifeHours || 0,
+      halfLifeValue: c.halfLifeHours || 0,
+      halfLifeUnit: 'hours',
+      defaultUnit: c.defaultUnit || 'mcg',
+      defaultRoute: c.defaultRoute || 'subcutaneous',
+      color: c.color || '#888',
+      isLibrary: true
+    }));
+
   allCompoundsForSelect = [
     ...libraryCompounds,
     ...libraryBlends,
+    ...builtinExtra,
     ...customCompounds.map(c => ({
       ...c,
       color: '#888',
