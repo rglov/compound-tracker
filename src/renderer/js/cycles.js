@@ -42,10 +42,11 @@ function getFreqShortLabel(entry) {
 }
 
 const CYCLE_STATUS_COLORS = {
-  planned: { bg: 'rgba(67,97,238,0.15)', color: '#4361ee', label: 'Planned' },
-  active: { bg: 'rgba(0,230,118,0.15)', color: '#00e676', label: 'Active' },
-  paused: { bg: 'rgba(255,213,79,0.15)', color: '#ffd54f', label: 'Paused' },
-  completed: { bg: 'rgba(160,160,176,0.15)', color: '#a0a0b0', label: 'Completed' }
+  planned:   { bg: 'rgba(67,97,238,0.15)',   color: '#4361ee', label: 'Planned' },
+  active:    { bg: 'rgba(0,230,118,0.15)',   color: '#00e676', label: 'Active' },
+  paused:    { bg: 'rgba(255,213,79,0.15)',  color: '#ffd54f', label: 'Paused' },
+  completed: { bg: 'rgba(160,160,176,0.15)', color: '#a0a0b0', label: 'Completed' },
+  archived:  { bg: 'rgba(100,80,160,0.15)',  color: '#9c7fe0', label: 'Archived' }
 };
 
 // ═══════════════════════════════════════
@@ -81,9 +82,9 @@ function refreshCyclesList() {
     return;
   }
 
-  // Sort: active first, then planned, paused, completed
-  const order = { active: 0, planned: 1, paused: 2, completed: 3 };
-  const sorted = [...allCycles].sort((a, b) => (order[a.status] || 9) - (order[b.status] || 9));
+  // Sort: active first, then planned, paused, completed, archived last
+  const order = { active: 0, planned: 1, paused: 2, completed: 3, archived: 4 };
+  const sorted = [...allCycles].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
 
   grid.innerHTML = sorted.map(cycle => {
     const st = CYCLE_STATUS_COLORS[cycle.status] || CYCLE_STATUS_COLORS.planned;
@@ -98,7 +99,7 @@ function refreshCyclesList() {
 
     // Adherence for active/completed
     let adherenceHtml = '';
-    if (cycle.status === 'active' || cycle.status === 'completed' || cycle.status === 'paused') {
+    if (cycle.status === 'active' || cycle.status === 'completed' || cycle.status === 'paused' || cycle.status === 'archived') {
       const stats = getCycleAdherence(cycle);
       const pct = stats.total > 0 ? Math.round((stats.taken / stats.total) * 100) : 0;
       adherenceHtml = `
@@ -1064,6 +1065,10 @@ function renderCycleDetail() {
       <button class="btn btn-secondary btn-small" onclick="completeCycle('${cycle.id}')">Complete</button>`;
   } else if (cycle.status === 'completed') {
     actionBtns = `
+      <button class="btn btn-primary btn-small" onclick="openArchiveModal('${cycle.id}')">Archive</button>
+      <button class="btn btn-danger btn-small" onclick="deleteCycle('${cycle.id}')">Delete</button>`;
+  } else if (cycle.status === 'archived') {
+    actionBtns = `
       <button class="btn btn-danger btn-small" onclick="deleteCycle('${cycle.id}')">Delete</button>`;
   }
   actionsContainer.innerHTML = actionBtns;
@@ -1092,7 +1097,7 @@ function renderCycleDetail() {
     return;
   }
 
-  // Active/paused/completed: show adherence + timeline
+  // Active/paused/completed/archived: show adherence + timeline
   const adherence = getCycleAdherence(cycle);
   const pct = adherence.total > 0 ? Math.round((adherence.taken / adherence.total) * 100) : 0;
 
@@ -1123,7 +1128,8 @@ function renderCycleDetail() {
         <span class="detail-stat-value" style="color:${pct >= 80 ? 'var(--accent-green)' : pct >= 50 ? 'var(--accent-gold)' : 'var(--accent-red)'}">${pct}%</span>
       </div>
     </div>
-    ${renderCycleTimeline(cycle)}`;
+    ${renderCycleTimeline(cycle)}
+    ${cycle.status === 'archived' && cycle.archiveReview ? renderArchiveReview(cycle.archiveReview) : ''}`;
 
   // Async: fill compound + supply requirement placeholders
   renderCycleCompoundRequirements(cycle, 'cycle-inline-compound-req');
@@ -1402,6 +1408,84 @@ async function deleteCycle(cycleId) {
   allCycles = allCycles.filter(c => c.id !== cycleId);
   await persistCycles();
   closeCycleDetail();
+}
+
+// ═══════════════════════════════════════
+// ARCHIVE
+// ═══════════════════════════════════════
+
+function renderArchiveReview(review) {
+  const stars = '★'.repeat(review.rating) + '☆'.repeat(10 - review.rating);
+  const archivedDate = review.archivedAt
+    ? new Date(review.archivedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+    : '';
+  return `
+    <div class="archive-review">
+      <h4 class="detail-subsection-title">Cycle Review</h4>
+      <div class="archive-review-meta">
+        <span class="archive-rating" title="${review.rating}/10">${stars}</span>
+        <span class="archive-date">${archivedDate}</span>
+      </div>
+      <div class="archive-review-grid">
+        ${review.mostImpactful ? `<div class="archive-review-item highlight-green"><span class="archive-review-label">Most Impactful</span><span class="archive-review-value">${escapeHtml(review.mostImpactful)}</span></div>` : ''}
+        ${review.leastImpactful ? `<div class="archive-review-item highlight-red"><span class="archive-review-label">Least Impactful</span><span class="archive-review-value">${escapeHtml(review.leastImpactful)}</span></div>` : ''}
+      </div>
+      ${review.wentWell ? `<div class="archive-review-section"><div class="archive-review-label">What went well</div><div class="archive-review-text">${escapeHtml(review.wentWell)}</div></div>` : ''}
+      ${review.wentBad ? `<div class="archive-review-section"><div class="archive-review-label">What didn't go well</div><div class="archive-review-text">${escapeHtml(review.wentBad)}</div></div>` : ''}
+      ${review.wouldChange ? `<div class="archive-review-section"><div class="archive-review-label">What I'd change</div><div class="archive-review-text">${escapeHtml(review.wouldChange)}</div></div>` : ''}
+    </div>`;
+}
+
+let _archivingCycleId = null;
+
+function openArchiveModal(cycleId) {
+  const cycle = allCycles.find(c => c.id === cycleId);
+  if (!cycle) return;
+  _archivingCycleId = cycleId;
+
+  // Populate compound selects
+  const compounds = cycle.entries.map(e => e.compoundName);
+  const makeOptions = (selected) => `<option value="">— Select —</option>` +
+    compounds.map(n => `<option value="${escapeHtml(n)}"${n === selected ? ' selected' : ''}>${escapeHtml(n)}</option>`).join('');
+
+  document.getElementById('archive-most-impactful').innerHTML = makeOptions('');
+  document.getElementById('archive-least-impactful').innerHTML = makeOptions('');
+
+  // Reset fields
+  document.getElementById('archive-went-well').value = '';
+  document.getElementById('archive-went-bad').value = '';
+  document.getElementById('archive-would-change').value = '';
+  document.getElementById('archive-rating').value = '7';
+  document.getElementById('archive-rating-display').textContent = '7 / 10';
+
+  document.getElementById('archive-modal').classList.remove('hidden');
+}
+
+function closeArchiveModal() {
+  document.getElementById('archive-modal').classList.add('hidden');
+  _archivingCycleId = null;
+}
+
+async function submitArchiveReview() {
+  const cycle = allCycles.find(c => c.id === _archivingCycleId);
+  if (!cycle) return;
+
+  cycle.archiveReview = {
+    wentWell:        document.getElementById('archive-went-well').value.trim(),
+    wentBad:         document.getElementById('archive-went-bad').value.trim(),
+    wouldChange:     document.getElementById('archive-would-change').value.trim(),
+    rating:          parseInt(document.getElementById('archive-rating').value, 10),
+    mostImpactful:   document.getElementById('archive-most-impactful').value,
+    leastImpactful:  document.getElementById('archive-least-impactful').value,
+    archivedAt:      new Date().toISOString()
+  };
+  cycle.status = 'archived';
+
+  await persistCycles();
+  closeArchiveModal();
+  renderCycleList();
+  renderCycleDetail();
+  showToast(`${cycle.name} archived`, 'success');
 }
 
 // ═══════════════════════════════════════
@@ -2369,6 +2453,9 @@ window.pauseCycle = pauseCycle;
 window.resumeCycle = resumeCycle;
 window.completeCycle = completeCycle;
 window.deleteCycle = deleteCycle;
+window.openArchiveModal = openArchiveModal;
+window.closeArchiveModal = closeArchiveModal;
+window.submitArchiveReview = submitArchiveReview;
 window.logScheduledDose = logScheduledDose;
 window.skipScheduledDose = skipScheduledDose;
 window.markScheduledDoseTaken = markScheduledDoseTaken;

@@ -4859,3 +4859,90 @@ select {
   color: var(--text-secondary);
   margin-bottom: 6px;
 }
+
+/* ═══════════════════════════════════════
+   Archive Review
+═══════════════════════════════════════ */
+
+.archive-review {
+  margin-top: 24px;
+  background: rgba(100, 80, 160, 0.08);
+  border: 1px solid rgba(156, 127, 224, 0.3);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.archive-review-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.archive-rating {
+  font-size: 18px;
+  color: var(--accent-gold);
+  letter-spacing: 2px;
+}
+
+.archive-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.archive-review-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.archive-review-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+}
+
+.archive-review-item.highlight-green {
+  border-color: rgba(0, 230, 118, 0.35);
+  background: rgba(0, 230, 118, 0.06);
+}
+
+.archive-review-item.highlight-red {
+  border-color: rgba(255, 82, 82, 0.35);
+  background: rgba(255, 82, 82, 0.06);
+}
+
+.archive-review-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.archive-review-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.archive-review-section {
+  margin-bottom: 12px;
+}
+
+.archive-review-section:last-child {
+  margin-bottom: 0;
+}
+
+.archive-review-text {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 4px;
+  white-space: pre-wrap;
+}

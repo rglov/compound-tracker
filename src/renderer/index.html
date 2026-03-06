@@ -349,6 +349,56 @@
       </div>
     </div>
 
+    <!-- Archive Review Modal -->
+    <div id="archive-modal" class="modal-overlay hidden">
+      <div class="modal" style="width:500px;max-width:95vw;">
+        <div class="modal-header">
+          <h3>Archive Cycle</h3>
+          <button class="modal-close" onclick="closeArchiveModal()">&times;</button>
+        </div>
+
+        <div class="form-section">
+          <label class="form-label">Overall Rating</label>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <input type="range" id="archive-rating" min="1" max="10" value="7" style="flex:1;"
+              oninput="document.getElementById('archive-rating-display').textContent = this.value + ' / 10'">
+            <span id="archive-rating-display" style="min-width:48px;font-weight:600;color:var(--accent-gold);">7 / 10</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-section flex-1">
+            <label class="form-label">Most Impactful Compound</label>
+            <select id="archive-most-impactful"></select>
+          </div>
+          <div class="form-section flex-1">
+            <label class="form-label">Least Impactful Compound</label>
+            <select id="archive-least-impactful"></select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <label class="form-label">What went well?</label>
+          <textarea id="archive-went-well" rows="3" placeholder="Positive outcomes, improvements noticed..." style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div class="form-section">
+          <label class="form-label">What didn't go well?</label>
+          <textarea id="archive-went-bad" rows="3" placeholder="Side effects, missed doses, challenges..." style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div class="form-section">
+          <label class="form-label">What would you change?</label>
+          <textarea id="archive-would-change" rows="3" placeholder="Dosing adjustments, timing, compounds to add or remove..." style="width:100%;resize:vertical;box-sizing:border-box;"></textarea>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" onclick="closeArchiveModal()">Cancel</button>
+          <button type="button" class="btn btn-primary" onclick="submitArchiveReview()">Archive Cycle</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Inventory View -->
     <div id="view-inventory" class="view">
       <div class="view-header">
