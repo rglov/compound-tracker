@@ -121,6 +121,8 @@ function setupCustomBlendForm() {
 
     const name = document.getElementById('blend-name').value.trim();
     const category = document.getElementById('blend-category').value;
+    const protocols = document.getElementById('blend-protocols').value.trim();
+    const notes = document.getElementById('blend-notes').value.trim();
     if (!name) return;
 
     const components = [];
@@ -153,7 +155,9 @@ function setupCustomBlendForm() {
       id: 'blend-' + generateId(),
       name: name,
       category: category,
-      components: components
+      components: components,
+      protocols: protocols,
+      notes: notes
     };
 
     await window.api.addCustomBlend(blend);
@@ -161,11 +165,12 @@ function setupCustomBlendForm() {
 
     // Reset
     document.getElementById('blend-name').value = '';
+    document.getElementById('blend-protocols').value = '';
+    document.getElementById('blend-notes').value = '';
     resetBlendComponents();
     await refreshCustomBlendsList();
-    if (typeof refreshCompoundSelect === 'function') {
-      await refreshCompoundSelect();
-    }
+    if (typeof syncCustomBlendsToLibrary === 'function') await syncCustomBlendsToLibrary();
+    if (typeof refreshCompoundSelect === 'function') await refreshCompoundSelect();
   });
 }
 
@@ -252,9 +257,8 @@ async function deleteCustomBlend(id) {
   await window.api.deleteCustomBlend(id);
   showToast('Blend deleted', 'success');
   await refreshCustomBlendsList();
-  if (typeof refreshCompoundSelect === 'function') {
-    await refreshCompoundSelect();
-  }
+  if (typeof syncCustomBlendsToLibrary === 'function') await syncCustomBlendsToLibrary();
+  if (typeof refreshCompoundSelect === 'function') await refreshCompoundSelect();
 }
 
 // ═══════════════════════════════════════

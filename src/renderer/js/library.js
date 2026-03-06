@@ -1851,6 +1851,38 @@ async function applyLibraryOverrides() {
       LIBRARY_DATA.push({ name, ...data });
     }
   }
+  await syncCustomBlendsToLibrary();
+}
+
+async function syncCustomBlendsToLibrary() {
+  // Remove previously injected custom blends
+  for (let i = LIBRARY_DATA.length - 1; i >= 0; i--) {
+    if (LIBRARY_DATA[i]._isCustomBlend) LIBRARY_DATA.splice(i, 1);
+  }
+
+  const customBlends = await window.api.getCustomBlends();
+  for (const blend of customBlends) {
+    const halfLife = blend.halfLifeHours ||
+      (blend.components && blend.components.length > 0
+        ? Math.max(...blend.components.map(c => c.halfLifeHours || 0))
+        : 0);
+    const autoProtocols = blend.components
+      ? 'Components:\n' + blend.components.map(c => `• ${c.compoundName}: ${c.dose} ${c.unit}`).join('\n')
+      : '';
+
+    LIBRARY_DATA.push({
+      name: blend.name,
+      type: 'Blend',
+      halfLifeHours: halfLife,
+      benefits: [],
+      tags: ['Custom Blend'],
+      protocols: blend.protocols || autoProtocols,
+      notes: blend.notes || '',
+      mechanism: '',
+      _isCustomBlend: true,
+      _blendId: blend.id
+    });
+  }
 }
 
 // ═══════════════════════════════════════
@@ -1997,6 +2029,7 @@ async function renderLibrary() {
   const container = document.getElementById('library-grid');
   if (!container) return;
 
+  await syncCustomBlendsToLibrary();
   await refreshCompoundStatuses();
 
   // Load inventory for stock display on cards
@@ -2367,3 +2400,4 @@ function renderLibraryEditForm(compound) {
 
 // Expose to global scope
 window.openLibraryCompoundDetail = openLibraryCompoundDetail;
+window.syncCustomBlendsToLibrary = syncCustomBlendsToLibrary;

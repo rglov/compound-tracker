@@ -9,6 +9,7 @@ let _invUsageConfig = { globalDefaults: {}, compoundOverrides: {} };
 let _invCurrentTab = 'compounds';
 let _invOrderFilter = 'all';
 let _orderLineItemCounter = 0;
+let _invCustomCompounds = [];
 
 const SUPPLY_CATEGORIES = {
   needles: { label: 'Needles', icon: '&#9657;' },
@@ -628,7 +629,8 @@ function setupOrderForm() {
   });
 }
 
-function openOrderModal(editId) {
+async function openOrderModal(editId) {
+  _invCustomCompounds = await window.api.getCustomCompounds();
   const modal = document.getElementById('order-modal');
   const title = document.getElementById('order-modal-title');
   _orderLineItemCounter = 0;
@@ -670,12 +672,22 @@ function closeOrderModal() {
 }
 
 function buildCompoundSelectOptions(selectedName) {
-  // Group LIBRARY_DATA by type, plus custom compounds
+  // Group LIBRARY_DATA by type (includes custom blends injected via syncCustomBlendsToLibrary)
   const groups = {};
   for (const c of LIBRARY_DATA) {
     const cat = c.type || 'Other';
     if (!groups[cat]) groups[cat] = [];
     groups[cat].push(c);
+  }
+
+  // Add COMPOUND_LIBRARY entries not already in LIBRARY_DATA
+  const libNames = new Set(LIBRARY_DATA.map(c => c.name.toLowerCase()));
+  const builtinExtra = COMPOUND_LIBRARY.filter(c => !libNames.has(c.name.toLowerCase()));
+  if (builtinExtra.length > 0) {
+    if (!groups['Other']) groups['Other'] = [];
+    for (const c of builtinExtra) {
+      groups['Other'].push({ name: c.name, type: 'Other' });
+    }
   }
 
   let html = '<option value="">Select compound...</option>';
@@ -687,6 +699,17 @@ function buildCompoundSelectOptions(selectedName) {
     }
     html += '</optgroup>';
   }
+
+  // Custom compounds (not in LIBRARY_DATA)
+  if (_invCustomCompounds.length > 0) {
+    html += '<optgroup label="Custom Compounds">';
+    for (const c of _invCustomCompounds) {
+      const sel = (selectedName && c.name === selectedName) ? ' selected' : '';
+      html += `<option value="${escapeHtml(c.name)}"${sel}>${escapeHtml(c.name)}</option>`;
+    }
+    html += '</optgroup>';
+  }
+
   return html;
 }
 
