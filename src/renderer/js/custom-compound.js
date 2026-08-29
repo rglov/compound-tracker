@@ -24,7 +24,7 @@ function setupCustomCompoundForm() {
     const defaultUnit = document.getElementById('cc-unit').value;
     const defaultRoute = document.getElementById('cc-route').value;
 
-    if (!name || !halfLifeValue) return;
+    if (!name || !halfLifeValue || halfLifeValue <= 0) return;
 
     const compound = {
       id: 'custom-' + generateId(),
@@ -169,7 +169,6 @@ function setupCustomBlendForm() {
     document.getElementById('blend-notes').value = '';
     resetBlendComponents();
     await refreshCustomBlendsList();
-    if (typeof syncCustomBlendsToLibrary === 'function') await syncCustomBlendsToLibrary();
     if (typeof refreshCompoundSelect === 'function') await refreshCompoundSelect();
   });
 }
@@ -257,7 +256,6 @@ async function deleteCustomBlend(id) {
   await window.api.deleteCustomBlend(id);
   showToast('Blend deleted', 'success');
   await refreshCustomBlendsList();
-  if (typeof syncCustomBlendsToLibrary === 'function') await syncCustomBlendsToLibrary();
   if (typeof refreshCompoundSelect === 'function') await refreshCompoundSelect();
 }
 
@@ -265,20 +263,70 @@ async function deleteCustomBlend(id) {
 // DATA MANAGEMENT
 // ═══════════════════════════════════════
 
+// CSV helpers
+const DOSE_CSV_COLUMNS = ['id','compoundName','compoundId','category','amount','unit','route','location','administeredAt','halfLifeHours','color','notes'];
+
+function dosesToCsv(doses) {
+  const escape = v => {
+    if (v == null) return '';
+    const s = String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const rows = [DOSE_CSV_COLUMNS.join(',')];
+  for (const d of doses) {
+    rows.push(DOSE_CSV_COLUMNS.map(col => escape(d[col])).join(','));
+  }
+  return rows.join('\n');
+}
+
+function csvToDoses(text) {
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) throw new Error('CSV has no data rows');
+
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const doses = [];
+  for (let i = 1; i < lines.length; i++) {
+    // Handle quoted fields
+    const cols = [];
+    let cur = '', inQ = false;
+    for (let j = 0; j < lines[i].length; j++) {
+      const ch = lines[i][j];
+      if (ch === '"') {
+        if (inQ && lines[i][j+1] === '"') { cur += '"'; j++; }
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) {
+        cols.push(cur); cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    cols.push(cur);
+    const dose = {};
+    headers.forEach((h, idx) => { dose[h] = cols[idx] ?? ''; });
+    if (dose.compoundName) doses.push(dose);
+  }
+  return doses;
+}
+
+function downloadBlob(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function setupDataManagement() {
+  // JSON export
   document.getElementById('export-data-btn').addEventListener('click', async () => {
     const data = await window.api.exportData();
-    const json = JSON.stringify(data, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `compound-tracker-backup-${new Date().toISOString().slice(0,10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(JSON.stringify(data, null, 2), `compound-tracker-backup-${new Date().toISOString().slice(0,10)}.json`, 'application/json');
     showToast('Data exported successfully', 'success');
   });
 
+  // JSON import
   document.getElementById('import-data-btn').addEventListener('click', () => {
     document.getElementById('import-file-input').click();
   });
@@ -286,22 +334,15 @@ function setupDataManagement() {
   document.getElementById('import-file-input').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-
+      const data = JSON.parse(await file.text());
       if (!data.doses || !Array.isArray(data.doses)) {
         showToast('Invalid backup file format', 'error');
         return;
       }
-
       if (!confirm(`Import ${data.doses.length} doses? This will merge with existing data.`)) return;
-
       await window.api.importData(data);
       showToast(`Imported ${data.doses.length} doses successfully`, 'success');
-
-      // Refresh everything
       await refreshCustomCompoundsList();
       await refreshCustomBlendsList();
       if (typeof refreshCompoundSelect === 'function') await refreshCompoundSelect();
@@ -310,8 +351,132 @@ function setupDataManagement() {
     } catch (err) {
       showToast('Failed to import: ' + err.message, 'error');
     }
-
     e.target.value = '';
+  });
+
+  // CSV export
+  document.getElementById('export-csv-btn').addEventListener('click', async () => {
+    const doses = await window.api.getDoses();
+    if (!doses.length) { showToast('No doses to export', 'error'); return; }
+    downloadBlob(dosesToCsv(doses), `compound-tracker-doses-${new Date().toISOString().slice(0,10)}.csv`, 'text/csv');
+    showToast(`Exported ${doses.length} doses to CSV`, 'success');
+  });
+
+  // CSV import
+  document.getElementById('import-csv-btn').addEventListener('click', () => {
+    document.getElementById('import-csv-input').click();
+  });
+
+  document.getElementById('import-csv-input').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const doses = csvToDoses(await file.text());
+      if (!doses.length) { showToast('No valid rows found in CSV', 'error'); return; }
+      if (!confirm(`Import ${doses.length} doses from CSV? This will merge with existing data.`)) return;
+      await window.api.importData({ doses });
+      showToast(`Imported ${doses.length} doses successfully`, 'success');
+      if (typeof refreshDashboard === 'function') await refreshDashboard();
+      if (typeof refreshHistory === 'function') await refreshHistory();
+    } catch (err) {
+      showToast('Failed to import CSV: ' + err.message, 'error');
+    }
+    e.target.value = '';
+  });
+
+  // Sample JSON download
+  document.getElementById('sample-json-btn').addEventListener('click', () => {
+    const sample = {
+      exportedAt: new Date().toISOString(),
+      doses: [
+        {
+          id: "dose-example-1",
+          compoundName: "BPC-157",
+          compoundId: "BPC-157",
+          category: "peptide",
+          amount: 250,
+          unit: "mcg",
+          route: "subcutaneous",
+          location: "abdomen",
+          administeredAt: new Date().toISOString(),
+          halfLifeHours: 4,
+          color: "#4fc3f7",
+          notes: "Morning dose"
+        }
+      ],
+      cycles: [
+        {
+          id: "cycle-example-1",
+          name: "Example Healing Cycle",
+          status: "planned",
+          startDate: new Date().toISOString().slice(0,10),
+          tags: ["healing", "recovery"],
+          entries: [
+            {
+              id: "entry-example-1",
+              compoundName: "BPC-157",
+              durationDays: 90,
+              frequency: "daily",
+              doses: [{ time: "08:00", amount: 250, unit: "mcg" }],
+              route: "subcutaneous",
+              color: "#4fc3f7"
+            }
+          ]
+        }
+      ],
+      customCompounds: [
+        {
+          id: "custom-example-1",
+          name: "My Custom Peptide",
+          category: "peptide",
+          halfLifeHours: 6,
+          defaultUnit: "mcg",
+          defaultRoute: "subcutaneous",
+          color: "#ab47bc"
+        }
+      ],
+      customBlends: [],
+      inventory: [],
+      orders: []
+    };
+    downloadBlob(JSON.stringify(sample, null, 2), 'compound-tracker-sample.json', 'application/json');
+    showToast('Sample JSON downloaded', 'success');
+  });
+
+  // Sample CSV download
+  document.getElementById('sample-csv-btn').addEventListener('click', () => {
+    const sampleDoses = [
+      {
+        id: 'dose-example-1',
+        compoundName: 'BPC-157',
+        compoundId: 'BPC-157',
+        category: 'peptide',
+        amount: 250,
+        unit: 'mcg',
+        route: 'subcutaneous',
+        location: 'abdomen',
+        administeredAt: new Date().toISOString(),
+        halfLifeHours: 4,
+        color: '#4fc3f7',
+        notes: 'Morning dose'
+      },
+      {
+        id: 'dose-example-2',
+        compoundName: 'TB-500',
+        compoundId: 'TB-500',
+        category: 'peptide',
+        amount: 5,
+        unit: 'mg',
+        route: 'subcutaneous',
+        location: 'thigh',
+        administeredAt: new Date().toISOString(),
+        halfLifeHours: 96,
+        color: '#66bb6a',
+        notes: ''
+      }
+    ];
+    downloadBlob(dosesToCsv(sampleDoses), 'compound-tracker-sample.csv', 'text/csv');
+    showToast('Sample CSV downloaded', 'success');
   });
 }
 

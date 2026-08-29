@@ -708,15 +708,36 @@
         <!-- Data Management -->
         <section class="settings-section">
           <h3>Data Management</h3>
-          <div class="data-actions">
-            <button class="btn btn-secondary" id="export-data-btn">Export Data (JSON)</button>
-            <button class="btn btn-secondary" id="import-data-btn">Import Data</button>
-            <input type="file" id="import-file-input" accept=".json" class="hidden">
+          <div class="data-management-grid">
+            <div class="data-management-group">
+              <p class="data-management-label">Full Backup (JSON)</p>
+              <div class="data-actions">
+                <button class="btn btn-secondary" id="export-data-btn">Export (JSON)</button>
+                <button class="btn btn-secondary" id="import-data-btn">Import (JSON)</button>
+              </div>
+            </div>
+            <div class="data-management-group">
+              <p class="data-management-label">Dose History (CSV)</p>
+              <div class="data-actions">
+                <button class="btn btn-secondary" id="export-csv-btn">Export Doses (CSV)</button>
+                <button class="btn btn-secondary" id="import-csv-btn">Import Doses (CSV)</button>
+              </div>
+            </div>
+            <div class="data-management-group">
+              <p class="data-management-label">Sample Files</p>
+              <div class="data-actions">
+                <button class="btn btn-secondary" id="sample-json-btn">Sample JSON</button>
+                <button class="btn btn-secondary" id="sample-csv-btn">Sample CSV</button>
+              </div>
+            </div>
           </div>
+          <input type="file" id="import-file-input" accept=".json" class="hidden">
+          <input type="file" id="import-csv-input" accept=".csv" class="hidden">
         </section>
       </div>
     </div>
   </main>
+  </div><!-- #app-shell -->
 
   <!-- Log Dose Modal -->
   <div id="log-dose-modal" class="modal-overlay hidden">

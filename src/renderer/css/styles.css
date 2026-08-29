@@ -1500,9 +1500,31 @@ select {
   gap: 10px;
 }
 
+.data-management-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.data-management-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.data-management-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .data-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Injection Sites Settings */
