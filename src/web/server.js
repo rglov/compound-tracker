@@ -73,7 +73,7 @@ function createApp(options = {}) {
     }
     if (method === 'POST' && pathname === '/api/doses') {
       const dose = await readJson(req);
-      store.set('doses', [...asArray(store.get('doses', [])), dose]);
+      store.set('doses', upsertById(store.get('doses', []), dose));
       return respondJson(res, 200, { success: true });
     }
     if (pathname.startsWith('/api/doses/')) {
@@ -283,7 +283,8 @@ function createApp(options = {}) {
       const data = fs.readFileSync(filePath);
       res.writeHead(200, {
         'content-type': contentType,
-        'content-length': data.length
+        'content-length': data.length,
+        'cache-control': 'no-store'
       });
       res.end(data);
     } catch (error) {

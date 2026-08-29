@@ -94,25 +94,37 @@ function updateReconModResults() {
       <span class="recon-value">${concentrationMcg.toLocaleString()} mcg/mL (${concentrationMg.toFixed(2)} mg/mL)</span>
     </div>`;
 
-  if (doseMcg && doseMcg > 0) {
+  if (doseMcg && doseMcg > 0 && concentrationMcg > 0) {
     const doseVolume = doseMcg / concentrationMcg;
-    const units100 = doseVolume * 100;
-    const units50 = doseVolume * 50;
+    // All insulin syringes use the U-100 scale: 1 unit = 0.01 mL
+    const units = doseVolume * 100;
     const dosesPerVial = Math.floor((peptideMg * 1000) / doseMcg);
+
+    function syringeHtml(label, maxUnits) {
+      if (units > maxUnits) {
+        return `
+      <div class="recon-result-row">
+        <span class="recon-label">${label}</span>
+        <span class="recon-value accent-red">Too small (${units.toFixed(1)}u needed, max ${maxUnits}u)</span>
+      </div>`;
+      }
+      const pct = units / maxUnits;
+      const cls = pct > 0.9 ? 'accent-orange' : 'accent-green';
+      return `
+      <div class="recon-result-row">
+        <span class="recon-label">${label}</span>
+        <span class="recon-value ${cls}">${units.toFixed(1)} units</span>
+      </div>`;
+    }
 
     html += `
       <div class="recon-result-row">
         <span class="recon-label">Dose Volume</span>
         <span class="recon-value">${doseVolume.toFixed(3)} mL</span>
       </div>
-      <div class="recon-result-row">
-        <span class="recon-label">Insulin Syringe (100u)</span>
-        <span class="recon-value accent-green">${units100.toFixed(1)} units</span>
-      </div>
-      <div class="recon-result-row">
-        <span class="recon-label">Insulin Syringe (50u)</span>
-        <span class="recon-value">${units50.toFixed(1)} units</span>
-      </div>
+      ${syringeHtml('Insulin Syringe (100u)', 100)}
+      ${syringeHtml('Insulin Syringe (50u)', 50)}
+      ${syringeHtml('Insulin Syringe (30u)', 30)}
       <div class="recon-result-row">
         <span class="recon-label">Doses per Vial</span>
         <span class="recon-value">${dosesPerVial}</span>

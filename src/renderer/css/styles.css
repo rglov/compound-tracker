@@ -3070,6 +3070,14 @@ select {
   color: var(--accent-green);
 }
 
+.recon-value.accent-orange {
+  color: #ffa726;
+}
+
+.recon-value.accent-red {
+  color: var(--accent-red);
+}
+
 .recon-hint {
   font-size: 12px;
   color: var(--text-muted);
