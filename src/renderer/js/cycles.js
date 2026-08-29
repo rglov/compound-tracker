@@ -65,6 +65,72 @@ async function persistCycles() {
 // CYCLES LIST VIEW
 // ═══════════════════════════════════════
 
+function renderCycleCard(cycle) {
+  const st = CYCLE_STATUS_COLORS[cycle.status] || CYCLE_STATUS_COLORS.planned;
+  const entryCount = cycle.entries.length;
+  const totalDays = getTotalCycleDays(cycle);
+  const startDateObj = cycle.startDate
+    ? new Date(cycle.startDate + (cycle.startDate.includes('T') ? '' : 'T00:00:00'))
+    : null;
+  const startStr = startDateObj
+    ? startDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+    : 'Not scheduled';
+
+  // Adherence for active/paused/completed/archived
+  let adherenceHtml = '';
+  if (cycle.status === 'active' || cycle.status === 'completed' || cycle.status === 'paused' || cycle.status === 'archived') {
+    const stats = getCycleAdherence(cycle);
+    const pct = stats.total > 0 ? Math.round((stats.taken / stats.total) * 100) : 0;
+    adherenceHtml = `
+      <div class="cycle-card-progress">
+        <div class="cycle-progress-bar">
+          <div class="cycle-progress-fill" style="width:${pct}%; background:${st.color}"></div>
+        </div>
+        <span class="cycle-progress-label">${stats.taken}/${stats.total} doses (${pct}%)</span>
+      </div>`;
+  }
+
+  // Compound pills
+  const compoundPills = cycle.entries.slice(0, 4).map(e =>
+    `<span class="cycle-compound-pill" style="border-color:${e.color || '#888'}">${escapeHtml(e.compoundName)}</span>`
+  ).join('') + (entryCount > 4 ? `<span class="cycle-compound-pill more">+${entryCount - 4}</span>` : '');
+
+  // Tags
+  const cycleTags = (cycle.tags || []);
+  const tagsHtml = cycleTags.length > 0
+    ? `<div class="cycle-card-tags">${cycleTags.slice(0, 5).map(t =>
+        `<span class="cycle-tag">${escapeHtml(t)}</span>`
+      ).join('')}${cycleTags.length > 5 ? `<span class="cycle-tag cycle-tag-more">+${cycleTags.length - 5}</span>` : ''}</div>`
+    : '';
+
+  return `
+    <div class="cycle-card" onclick="openCycleDetail('${cycle.id}')">
+      <div class="cycle-card-header">
+        <h3 class="cycle-card-name">${escapeHtml(cycle.name)}</h3>
+        <span class="cycle-status-badge" style="background:${st.bg};color:${st.color}">${st.label}</span>
+      </div>
+      <div class="cycle-card-meta">
+        <span>${entryCount} compound${entryCount !== 1 ? 's' : ''}</span>
+        <span>${totalDays} days</span>
+        <span>${startStr}</span>
+      </div>
+      <div class="cycle-card-compounds">${compoundPills}</div>
+      ${tagsHtml}
+      ${adherenceHtml}
+    </div>`;
+}
+
+function renderCyclesSection(title, cycles) {
+  if (cycles.length === 0) return '';
+  return `
+    <div class="cycles-section">
+      <h2 class="cycles-section-heading">${title}</h2>
+      <div class="cycles-section-grid">
+        ${cycles.map(renderCycleCard).join('')}
+      </div>
+    </div>`;
+}
+
 function refreshCyclesList() {
   const grid = document.getElementById('cycles-grid');
   if (!grid) return;
@@ -82,64 +148,24 @@ function refreshCyclesList() {
     return;
   }
 
-  // Sort: active first, then planned, paused, completed, archived last
-  const order = { active: 0, planned: 1, paused: 2, completed: 3, archived: 4 };
-  const sorted = [...allCycles].sort((a, b) => (order[a.status] ?? 9) - (order[b.status] ?? 9));
+  const active   = allCycles.filter(c => c.status === 'active' || c.status === 'paused');
+  const planned  = allCycles.filter(c => c.status === 'planned');
+  const archived = allCycles.filter(c => c.status === 'completed' || c.status === 'archived');
 
-  grid.innerHTML = sorted.map(cycle => {
-    const st = CYCLE_STATUS_COLORS[cycle.status] || CYCLE_STATUS_COLORS.planned;
-    const entryCount = cycle.entries.length;
-    const totalDays = getTotalCycleDays(cycle);
-    const startDateObj = cycle.startDate
-      ? new Date(cycle.startDate + (cycle.startDate.includes('T') ? '' : 'T00:00:00'))
-      : null;
-    const startStr = startDateObj
-      ? startDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-      : 'Not scheduled';
+  // Sort each section by start date descending (most recent first)
+  const byDate = (a, b) => {
+    const da = a.startDate ? new Date(a.startDate).getTime() : 0;
+    const db = b.startDate ? new Date(b.startDate).getTime() : 0;
+    return db - da;
+  };
+  active.sort(byDate);
+  planned.sort(byDate);
+  archived.sort(byDate);
 
-    // Adherence for active/completed
-    let adherenceHtml = '';
-    if (cycle.status === 'active' || cycle.status === 'completed' || cycle.status === 'paused' || cycle.status === 'archived') {
-      const stats = getCycleAdherence(cycle);
-      const pct = stats.total > 0 ? Math.round((stats.taken / stats.total) * 100) : 0;
-      adherenceHtml = `
-        <div class="cycle-card-progress">
-          <div class="cycle-progress-bar">
-            <div class="cycle-progress-fill" style="width:${pct}%; background:${st.color}"></div>
-          </div>
-          <span class="cycle-progress-label">${stats.taken}/${stats.total} doses (${pct}%)</span>
-        </div>`;
-    }
-
-    // Compound pills
-    const compoundPills = cycle.entries.slice(0, 4).map(e =>
-      `<span class="cycle-compound-pill" style="border-color:${e.color || '#888'}">${escapeHtml(e.compoundName)}</span>`
-    ).join('') + (entryCount > 4 ? `<span class="cycle-compound-pill more">+${entryCount - 4}</span>` : '');
-
-    // Tags
-    const cycleTags = (cycle.tags || []);
-    const tagsHtml = cycleTags.length > 0
-      ? `<div class="cycle-card-tags">${cycleTags.slice(0, 5).map(t =>
-          `<span class="cycle-tag">${escapeHtml(t)}</span>`
-        ).join('')}${cycleTags.length > 5 ? `<span class="cycle-tag cycle-tag-more">+${cycleTags.length - 5}</span>` : ''}</div>`
-      : '';
-
-    return `
-      <div class="cycle-card" onclick="openCycleDetail('${cycle.id}')">
-        <div class="cycle-card-header">
-          <h3 class="cycle-card-name">${escapeHtml(cycle.name)}</h3>
-          <span class="cycle-status-badge" style="background:${st.bg};color:${st.color}">${st.label}</span>
-        </div>
-        <div class="cycle-card-meta">
-          <span>${entryCount} compound${entryCount !== 1 ? 's' : ''}</span>
-          <span>${totalDays} days</span>
-          <span>${startStr}</span>
-        </div>
-        <div class="cycle-card-compounds">${compoundPills}</div>
-        ${tagsHtml}
-        ${adherenceHtml}
-      </div>`;
-  }).join('');
+  grid.innerHTML =
+    renderCyclesSection('Active Cycles', active) +
+    renderCyclesSection('Planned Cycles', planned) +
+    renderCyclesSection('Archived Cycles', archived);
 }
 
 function getTotalCycleDays(cycle) {
@@ -173,10 +199,15 @@ function getCycleAdherence(cycle) {
   const now = Date.now();
   const scheduled = cycle.scheduledDoses || [];
   const past = scheduled.filter(d => new Date(d.scheduledAt).getTime() <= now);
-  const taken = past.filter(d => d.status === 'taken').length;
-  const skipped = past.filter(d => d.status === 'skipped').length;
+  // Count ALL taken/skipped doses regardless of scheduled time — users may log doses
+  // early (before the scheduled time), those still count toward adherence.
+  const taken = scheduled.filter(d => d.status === 'taken').length;
+  const skipped = scheduled.filter(d => d.status === 'skipped').length;
   const pending = past.filter(d => d.status === 'pending').length;
-  return { total: past.length, taken, skipped, pending, future: scheduled.length - past.length };
+  // Total is the larger of (past scheduled) or (already actioned doses) so the
+  // denominator never goes below what the user has actually done.
+  const total = Math.max(past.length, taken + skipped);
+  return { total, taken, skipped, pending, future: scheduled.length - past.length };
 }
 
 // ═══════════════════════════════════════
@@ -888,8 +919,13 @@ async function saveActiveCycleEdits() {
     return doseDate >= now;
   });
 
+  // Deduplicate: if a preserved taken/skipped dose already occupies a slot (same entryId + scheduledAt),
+  // don't also include the freshly-generated dose for that slot (avoids double-counting after edits)
+  const preservedKeys = new Set(preservedDoses.map(d => `${d.entryId}|${d.scheduledAt}`));
+  const dedupedFutureDoses = futureDoses.filter(d => !preservedKeys.has(`${d.entryId}|${d.scheduledAt}`));
+
   // Merge: preserved past doses + new future doses
-  currentBuilderCycle.scheduledDoses = [...preservedDoses, ...futureDoses];
+  currentBuilderCycle.scheduledDoses = [...preservedDoses, ...dedupedFutureDoses];
   currentBuilderCycle.scheduledDoses.sort((a, b) =>
     new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
   );
@@ -2001,6 +2037,7 @@ function scrollCycleToToday() {
 
 // Reconcile: check dose history against a cycle's pending scheduled doses.
 // Matches logged doses to pending scheduled doses by compound name + date proximity.
+// Each logged dose can only satisfy one scheduled slot (prevents double-counting).
 async function reconcileCycleDoses(cycleId) {
   const cycle = allCycles.find(c => c.id === cycleId);
   if (!cycle) return;
@@ -2018,18 +2055,38 @@ async function reconcileCycleDoses(cycleId) {
   const dayMs = 24 * 60 * 60 * 1000;
   let changed = false;
 
-  for (const scheduled of pastPending) {
+  // Seed with dose IDs already consumed by previously taken scheduled slots
+  const matchedDoseIds = new Set(
+    (cycle.scheduledDoses || [])
+      .filter(d => d.status === 'taken' && d.loggedDoseId)
+      .map(d => d.loggedDoseId)
+  );
+
+  // Process in chronological order so earlier slots claim earlier logged doses
+  const sortedPending = [...pastPending].sort((a, b) =>
+    new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+  );
+
+  for (const scheduled of sortedPending) {
     const schedTime = new Date(scheduled.scheduledAt).getTime();
 
-    // Find a logged dose matching this compound within ±24h
-    const match = doseHistory.find(d =>
-      d.compoundName === scheduled.compoundName &&
-      Math.abs(new Date(d.administeredAt).getTime() - schedTime) <= dayMs
-    );
+    // Find the closest unmatched logged dose for this compound within ±24h
+    let best = null;
+    let bestDiff = Infinity;
+    for (const d of doseHistory) {
+      if (matchedDoseIds.has(d.id)) continue;
+      if (d.compoundName !== scheduled.compoundName) continue;
+      const diff = Math.abs(new Date(d.administeredAt).getTime() - schedTime);
+      if (diff <= dayMs && diff < bestDiff) {
+        best = d;
+        bestDiff = diff;
+      }
+    }
 
-    if (match) {
+    if (best) {
       scheduled.status = 'taken';
-      scheduled.loggedDoseId = match.id;
+      scheduled.loggedDoseId = best.id;
+      matchedDoseIds.add(best.id);
       changed = true;
     }
   }
@@ -2041,13 +2098,14 @@ async function reconcileCycleDoses(cycleId) {
 
 // When a dose is logged outside the cycle flow (regular Log Dose button),
 // find the closest pending scheduled dose in any active cycle and mark it taken.
-async function autoMatchCycleDoses(compoundName, administeredAt) {
+async function autoMatchCycleDoses(compoundName, administeredAt, targetCycleId = null) {
   const adminTime = new Date(administeredAt).getTime();
   const dayMs = 24 * 60 * 60 * 1000;
 
   let matched = false;
   for (const cycle of allCycles) {
     if (cycle.status !== 'active' && cycle.status !== 'paused') continue;
+    if (targetCycleId && cycle.id !== targetCycleId) continue;
 
     const pendingDoses = (cycle.scheduledDoses || [])
       .filter(d => d.status === 'pending' && d.compoundName === compoundName);
@@ -2079,6 +2137,15 @@ async function autoMatchCycleDoses(compoundName, administeredAt) {
 
   if (matched) {
     await persistCycles();
+    // If the matched cycle's detail view is currently open, refresh it so
+    // the timeline and adherence stats reflect the newly taken dose immediately.
+    if (currentDetailCycleId) {
+      const matchedCycle = allCycles.find(c =>
+        c.id === currentDetailCycleId &&
+        (c.status === 'active' || c.status === 'paused')
+      );
+      if (matchedCycle) renderCycleDetail();
+    }
   }
 }
 
@@ -2466,3 +2533,4 @@ window.allocateInventoryFromUI = allocateInventoryFromUI;
 window.closeVialSelectModal = closeVialSelectModal;
 window.submitVialSelection = submitVialSelection;
 window.returnCycleInventoryFromUI = returnCycleInventoryFromUI;
+window.getActiveCycles = () => allCycles.filter(c => c.status === 'active' || c.status === 'paused');

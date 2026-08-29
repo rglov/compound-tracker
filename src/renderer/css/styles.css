@@ -2564,9 +2564,7 @@ select {
 /* CYCLE PLANNER                          */
 /* ═══════════════════════════════════════ */
 .cycles-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 12px;
+  display: block;
 }
 
 .cycle-card {
@@ -5210,4 +5208,26 @@ select {
   line-height: 1.5;
   margin-top: 4px;
   white-space: pre-wrap;
+}
+
+/* Cycle sections */
+.cycles-section {
+  margin-bottom: 32px;
+}
+
+.cycles-section-heading {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-secondary);
+  margin: 0 0 12px 2px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cycles-section-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
 }
