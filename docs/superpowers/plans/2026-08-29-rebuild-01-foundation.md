@@ -1220,7 +1220,21 @@ export const dosesCycleFk = foreignKey({
 }).onDelete('set null');
 ```
 
-Verify this compiles with `pnpm typecheck`. **If drizzle-kit does not pick up a standalone `foreignKey` declared outside the table's config callback**, fall back to declaring `cycleId` inline in `doses.ts` with `references(() => cycles.id, { onDelete: 'set null' })` and importing `cycles` there instead — TypeScript tolerates the cycle because the reference is inside a lazy callback. Confirm whichever form you use appears in the generated SQL in Step 5.
+**RESOLVED during execution — use the inline form, not the standalone one.** drizzle-kit 0.31.10 silently ignores a standalone `foreignKey()` declared outside a table's config callback: it emits no constraint and no warning. Declare `cycleId` inline in `doses.ts` instead:
+
+```typescript
+// In doses.ts. Circular by design: cycles.ts imports doses for
+// scheduledDoses.loggedDoseId. Safe because every reference is inside a
+// lazy `() =>` callback, so neither module reads the other's tables
+// during evaluation.
+import { cycles } from './cycles';
+
+    cycleId: uuid('cycle_id').references(() => cycles.id, {
+      onDelete: 'set null',
+    }),
+```
+
+Do not add the `foreignKey` import or the `dosesCycleFk` export to `cycles.ts`. Confirm the constraint appears in the generated SQL in Step 5.
 
 - [ ] **Step 4: Export from the barrel**
 
@@ -1746,23 +1760,24 @@ export const batchTestAssaysRelations = relations(batchTestAssays, ({ one }) => 
 }));
 ```
 
-- [ ] **Step 2: Wire the deferred `doses.inventoryItemId` foreign key**
+- [ ] **Step 2: Wire the `doses.inventoryItemId` foreign key**
 
-Append to `lib/db/schema/stock.ts`, using whichever of the two forms worked in Task 5 Step 3:
+Same inline form as Task 5 Step 3, since the standalone `foreignKey()` is ignored by drizzle-kit. In `lib/db/schema/doses.ts`, add the import and make the column a reference:
 
 ```typescript
-import { foreignKey } from 'drizzle-orm/pg-core';
-
-import { doses } from './doses';
-
-// `set null` because discarding a vial must not delete the doses drawn
-// from it.
-export const dosesInventoryFk = foreignKey({
-  columns: [doses.inventoryItemId],
-  foreignColumns: [inventoryItems.id],
-  name: 'doses_inventory_item_id_fk',
-}).onDelete('set null');
+import { inventoryItems } from './stock';
 ```
+
+```typescript
+    /** The vial this was drawn from, enabling auto-decrement. `set null`
+     *  because discarding a vial must not delete the doses drawn from it. */
+    inventoryItemId: uuid('inventory_item_id').references(
+      () => inventoryItems.id,
+      { onDelete: 'set null' },
+    ),
+```
+
+Confirm `doses_inventory_item_id_...fk` with `ON DELETE set null` appears in the generated SQL in Step 4.
 
 - [ ] **Step 3: Export from the barrel**
 
@@ -2060,7 +2075,10 @@ export const supplyUsageRules = pgTable(
     // defaults, and Postgres's default NULLS DISTINCT would let an
     // unlimited number of duplicate route defaults through — exactly the
     // rows that need constraining most.
-    uniqueIndex('supply_usage_rules_key')
+    //
+    // A unique *constraint* rather than a unique *index*: drizzle only
+    // exposes nullsNotDistinct() on unique(), not on uniqueIndex().
+    unique('supply_usage_rules_key')
       .on(table.userId, table.route, table.supplyName, table.compoundId)
       .nullsNotDistinct(),
   ],
@@ -2115,12 +2133,16 @@ export * from './misc';
 
 - [ ] **Step 3: Generate the migration and confirm the NULLS clause**
 
+Import `unique` alongside `uniqueIndex` from `drizzle-orm/pg-core` — `userSettings` still uses `uniqueIndex`, so both are needed.
+
 ```bash
 pnpm db:generate
 grep -i "nulls not distinct" drizzle/*.sql
 ```
 
-Expected: a match on the `supply_usage_rules_key` index. **If there is no match**, the drizzle-kit version in use does not emit `.nullsNotDistinct()`; replace that index with two partial ones, mirroring the pattern used for `compounds` in Task 4:
+Expected: `CONSTRAINT "supply_usage_rules_key" UNIQUE NULLS NOT DISTINCT(...)`.
+
+**RESOLVED during execution.** Verified working on drizzle-orm 0.45.2 with the `unique()` form above. Note that `uniqueIndex(...).on(...).nullsNotDistinct()` throws `nullsNotDistinct is not a function` — the method exists only on the unique-constraint builder. If a future drizzle version drops it from there too, fall back to two partial indexes mirroring `compounds` in Task 4:
 
 ```typescript
     uniqueIndex('supply_usage_rules_default_key')
