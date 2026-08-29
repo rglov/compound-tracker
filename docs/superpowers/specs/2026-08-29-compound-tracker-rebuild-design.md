@@ -3,6 +3,10 @@
 **Date:** 2026-08-29
 **Status:** Approved (brainstorming complete; implementation plan pending)
 **Supersedes:** current Electron/vanilla-JS + JSON-file implementation
+**Amended 2026-08-29:** added the cycle plan/schedule/adherence subsystem
+(CycleEntry, ScheduledDose, reconciliation) that the first draft omitted,
+plus the adherence heatmap, cycle tags, the `paused` status, and dose CSV
+export/import. Parity baseline is commit `058e0ed`.
 
 ---
 
@@ -97,9 +101,59 @@ Logging a blend dose creates one Dose row per component, all sharing a `blendGro
 
 - `id`, `userId`, `name`
 - `startDate`, `endDate` (nullable — null means active)
-- `status` (enum: `planned` | `active` | `completed` | `archived`)
-- `goal`, `notes`, `reviewNotes` (post-cycle)
+- `status` (enum: `planned` | `active` | `paused` | `completed` | `archived`)
+- `tags` (text[])
+- `notes`, `reviewNotes` (post-cycle)
 - `createdAt`, `updatedAt`
+
+A cycle is not just a date-ranged container for doses — it is a **plan**
+(CycleEntry rows) that generates a **schedule** (ScheduledDose rows), against
+which actual logged doses are reconciled to produce an adherence figure.
+
+#### CycleEntry
+
+One protocol line: "500mcg Tesamorelin, subcutaneous, daily, for 90 days,
+5 days on / 2 days off."
+
+- `id`, `cycleId` (fk), `compoundId` (fk)
+- `dose` (numeric), `unit` (text), `route` (enum)
+- `frequency` (enum: `daily` | `2x_daily` | `3x_weekly` | `eod` | `weekly` | `every_n_days` | `custom_days`)
+- `customFreqDays` (int, nullable — the N for `every_n_days`)
+- `customDays` (int[], nullable — weekday indices for `custom_days`)
+- `startDate` (date — may be later than the cycle's, for staggered starts)
+- `durationDays` (int)
+- `onDays`, `offDays` (int, nullable — on/off cycling within the entry)
+- `sortOrder` (int)
+
+Compound presentation (`color`, `halfLifeHours`, `category`) is read through
+`compoundId` rather than copied onto the row, unlike today's model.
+
+#### ScheduledDose
+
+A generated slot, one row per planned administration.
+
+- `id`, `cycleId` (fk), `cycleEntryId` (fk)
+- `compoundId` (fk), `dose` (numeric), `unit` (text), `route` (enum)
+- `scheduledAt` (timestamptz)
+- `status` (enum: `pending` | `taken` | `skipped`)
+- `loggedDoseId` (uuid, nullable, fk → Dose — set when a real dose satisfies the slot)
+
+**Generation.** Saving a cycle regenerates the schedule from its entries.
+Past slots that are already `taken` or `skipped` are preserved; only future
+`pending` slots are recomputed, so editing a running cycle never rewrites
+history. Multi-dose frequencies (`2x_daily`) expand to one slot per time of day.
+
+**Reconciliation.** Logged doses are matched to pending slots by
+`(compoundId, |administeredAt − scheduledAt| ≤ 24h)`, nearest first, in
+chronological slot order. A given Dose can satisfy at most one slot —
+`loggedDoseId` is unique — which is what prevents double-counting. Two
+callers drive this: a sweep when a cycle view opens, and an immediate match
+when a dose is logged outside the cycle flow.
+
+**Adherence.** `taken` and `skipped` count regardless of whether the slot's
+time has passed, since doses may be logged early. The denominator is
+`max(past slots, taken + skipped)` so it can never fall below what the user
+has actually done.
 
 #### Dose (hot table)
 
@@ -188,7 +242,7 @@ Starts with `enabledInjectionSites`.
 ### Key improvements over the current model
 
 1. **Normalized `compoundId` everywhere** — dose, inventory, order line, blend component. Stops the current pattern of copying compound name/half-life/color onto every row. `halfLifeHoursSnapshot` on Dose is the only intentional denormalization (audit trail).
-2. **Cycles are first-class:** doses explicitly belong to at most one cycle. No timestamp inference.
+2. **Cycles are first-class:** doses explicitly belong to at most one cycle via `Dose.cycleId`, and the plan/schedule/adherence chain is relational (CycleEntry, ScheduledDose) rather than two JSON arrays hanging off a cycle object. `ScheduledDose.loggedDoseId` is a real FK with a unique constraint, so the "one dose satisfies one slot" rule is enforced by the database instead of by a `Set` in the reconciliation loop.
 3. **Dose ↔ InventoryItem link** enables automatic `remainingAmount` decrement.
 4. **Blends are relational**, not JSON — the UI can edit components individually.
 5. **Supply usage rules are rows** — queryable and editable, not a blob.
@@ -214,8 +268,8 @@ Starts with `enabledInjectionSites`.
 └─────────────────────────────────────┘
 ```
 
-- **Home** — dashboard: "active in your system" list, current-cycle context, today's logged doses, decay chart.
-- **Cycles** — current cycle prominent; planned/archived below. Tap → detail (dose list + chart + review form).
+- **Home** — dashboard: "active in your system" list, current-cycle context, today's logged doses, decay chart, 52-week adherence heatmap.
+- **Cycles** — sectioned list (active/paused first, then planned, completed, archived). Each card shows status, compound pills, tags, and an adherence bar. Tap → detail (schedule with take/skip actions, dose list, chart, review form).
 - **[+ Log]** — center action, opens the dose logger as a bottom-sheet modal (parallel intercepted route) on phone / full page on desktop.
 - **Library** — searchable list of compounds + blends. Detail views for each. Custom-compound and blend builders live here.
 - **Stock** — logistics cluster: inventory, orders, supplies, reconstitution calculator, batch tests.
@@ -235,9 +289,10 @@ app/
 │   │   ├── default.tsx
 │   │   └── log/page.tsx                Dose logger sheet
 │   ├── cycles/
-│   │   ├── page.tsx                    List
-│   │   ├── new/page.tsx                Plan a cycle
-│   │   └── [id]/page.tsx               Cycle detail + review form
+│   │   ├── page.tsx                    Sectioned list (active/planned/done)
+│   │   ├── new/page.tsx                Cycle builder — entries + timeline
+│   │   ├── [id]/page.tsx               Detail: schedule, adherence, review form
+│   │   └── [id]/edit/page.tsx          Builder in edit mode
 │   ├── library/
 │   │   ├── page.tsx                    Search + list
 │   │   ├── new/page.tsx                Custom compound builder
@@ -258,7 +313,8 @@ app/
 │   │   └── reconstitution/page.tsx
 │   ├── bloodwork/page.tsx
 │   ├── history/page.tsx
-│   └── settings/page.tsx
+│   ├── settings/page.tsx
+│   └── settings/data/page.tsx          Backup / export / import
 ```
 
 ### Rendering strategy
@@ -316,13 +372,18 @@ Every current-app feature has a defined new home:
 | Current | New home | Notable changes |
 |---|---|---|
 | Dashboard (`dashboard.js`) | `app/(authed)/page.tsx` | Server Component + Cache Components + client chart |
-| Dose logger (`dose-logger.js`) | `app/(authed)/@sheet/log/page.tsx` | Server Action + `useOptimistic`; blend expansion; optional inventory-item bind |
+| Adherence heatmap (`dashboard.js`) | `components/adherence-heatmap.tsx` | 52-week grid; server-aggregated day counts, client tooltips |
+| Dose logger (`dose-logger.js`) | `app/(authed)/@sheet/log/page.tsx` | Server Action + `useOptimistic`; blend expansion; optional inventory-item bind; optional cycle link that fills `Dose.cycleId` directly instead of relying on ±24h matching |
+| Sidebar nav (`index.html`) | — | Does not translate; replaced by the phone-first bottom tab bar in §4 |
 | Body map (`bodymap.js`) | `components/body-map.tsx` | SVG, filtered by `enabledInjectionSites` |
 | Library browse (`library.js`) | `app/(authed)/library/page.tsx` | LIBRARY_DATA becomes a seed script; Compound rows with `source='library'` |
 | Compound detail (`compound-detail.js`) | `app/(authed)/library/[compoundId]/page.tsx` | Adds "your tested batches" section |
 | Custom compound builder (`custom-compound.js`) | `app/(authed)/library/new/page.tsx` | Server Action; same form powers edit |
 | Blends | `app/(authed)/blends/new/page.tsx` | First-class Blend + BlendComponent tables |
-| Cycles (`cycles.js`) | `app/(authed)/cycles/*` | List, planner, detail with review form |
+| Cycles list (`cycles.js`) | `app/(authed)/cycles/page.tsx` | Sectioned by status; cards carry adherence, pills, tags |
+| Cycle builder (`cycles.js`) | `app/(authed)/cycles/new`, `[id]/edit` | CycleEntry rows; entry timeline preview; same form for create and edit |
+| Schedule + adherence (`cycles.js`) | `lib/cycles/schedule.ts` + `[id]/page.tsx` | Pure generator, Server Action reconciler, take/skip actions |
+| Cycle review (`cycles.js`) | `app/(authed)/cycles/[id]/page.tsx` | Review form on completion; archive transition |
 | Inventory (`inventory.js`) | `app/(authed)/stock/*` | List with filters; detail shows linked BatchTest + dose draw history |
 | Reconstitution (`reconstitution.js`) | `app/(authed)/stock/reconstitution/page.tsx` | Client-only math; optional save to InventoryItem |
 | Orders (inside inventory) | `app/(authed)/stock/orders/*` | Order + OrderLineItem tables; delivered orders auto-create inventory |
@@ -330,7 +391,8 @@ Every current-app feature has a defined new home:
 | BatchTest results (new) | `app/(authed)/stock/tests/*` | Covered in §3 and §8 |
 | Bloodwork (schema-only today) | `app/(authed)/bloodwork/page.tsx` | New UI: minimal list + add form |
 | History (`history.js`) | `app/(authed)/history/page.tsx` | Server-fetched slice + client filter |
-| Settings (scattered today) | `app/(authed)/settings/page.tsx` | Sites, supply rules, profile, export/import |
+| Settings (scattered today) | `app/(authed)/settings/page.tsx` | Sites, supply rules, profile |
+| Export/import (`custom-compound.js`) | `app/(authed)/settings/data/page.tsx` | Full JSON backup, dose-history CSV round-trip, sample downloads; export via Route Handler, import via Server Action |
 | Chart (`chart.js`) | `components/decay-chart.tsx` | Recharts instead of Chart.js |
 | Utils (`utils.js`) | `lib/utils/*` | Split by concern |
 | Electron main/renderer/web-server | Deleted | Web-only target |
@@ -383,7 +445,7 @@ Order of operations:
 2. Look up the Clerk user (`--user-id=<clerkId>` flag); all subsequent rows are scoped to this ID.
 3. Import 64 InventoryItems — resolve `compoundName` → `compoundId` (case-insensitive with alias fallback); warn on unresolved names.
 4. Import 5 Orders + their line items (resolving compound names). Collapse `statusHistory` arrays to `orderedAt`/`shippedAt`/`deliveredAt` timestamps on Order.
-5. Skip empty collections (doses, cycles, custom compounds/blends, bloodwork, libraryOverrides, compoundSettings).
+5. Skip empty collections. As of the 2026-08-29 snapshot that is everything except inventory (64), orders (5), and supplies (1) — doses, cycles, custom compounds/blends, bloodwork, libraryOverrides and compoundSettings are all empty, so no CycleEntry or ScheduledDose rows need importing. The script still handles them, since the snapshot is re-taken at cutover.
 6. Recreate supplies (1 item) and the two-route supply usage defaults manually via a fresh seed, not from the legacy JSON blob.
 
 Final output: `imported N inventory items, M orders, skipped K empty collections, unresolved compound names: [...]`.
@@ -409,8 +471,8 @@ No downtime window, no user coordination, no rollback drama — worst case, the 
 
 ### Tiers
 
-- **Unit (Vitest)** — PK math (`lib/pk/`), reconstitution calculator, import-script alias resolution, SupplyUsageRule → per-dose consumption logic. Cover single-dose decay at t=0, ½·hl, 1·hl, 5·hl; multi-dose stacking; future-dated behavior; zero/null half-life edges; adaptive interval bounds.
-- **Integration (Vitest + ephemeral Postgres)** — Server Actions with cross-row logic: dose ↔ inventory auto-decrement; cycle deletion unlinks (not cascades) doses; blend expansion creates the right N doses sharing `blendGroupId`; batch test lookup by `(compoundId, batchNumber)`. Use Neon test branches or Testcontainers.
+- **Unit (Vitest)** — PK math (`lib/pk/`), reconstitution calculator, import-script alias resolution, SupplyUsageRule → per-dose consumption logic, and schedule generation (`lib/cycles/schedule.ts`). Cover single-dose decay at t=0, ½·hl, 1·hl, 5·hl; multi-dose stacking; future-dated behavior; zero/null half-life edges; adaptive interval bounds. For schedules: every frequency variant, on/off cycling, staggered entry start dates, `2x_daily` expanding to two slots per day, and the adherence denominator when doses are logged early.
+- **Integration (Vitest + ephemeral Postgres)** — Server Actions with cross-row logic: dose ↔ inventory auto-decrement; cycle deletion unlinks (not cascades) doses; blend expansion creates the right N doses sharing `blendGroupId`; batch test lookup by `(compoundId, batchNumber)`. Reconciliation gets its own cluster: one dose never satisfies two slots, regeneration preserves `taken`/`skipped` history while replacing future `pending` slots, and an explicit cycle link on the dose logger wins over ±24h proximity matching. Use Neon test branches or Testcontainers.
 - **E2E (Playwright)** — one hero-loop test: sign in → open [+ Log] → pick compound → log dose → see it in "active in your system" on Home. Add more E2E only when a regression justifies each one.
 
 ### Explicitly not tested
@@ -430,6 +492,7 @@ No downtime window, no user coordination, no rollback drama — worst case, the 
 - Log a dose on phone viewport, one-handed
 - Confirm PWA installs to home screen and launches standalone
 - Confirm current-cycle badge on dashboard is correct
+- Confirm a logged dose flips its scheduled slot to `taken` and moves the cycle's adherence bar
 - Confirm inventory `remainingAmount` decrements when dose is logged from a vial
 - Confirm batch test badge appears on inventory item with matching test
 
