@@ -47,7 +47,7 @@ async function refreshDashboard() {
       startTime = earliest - 12 * 60 * 60 * 1000;
       let latestActive = now;
       for (const dose of doses) {
-        const clearTime = new Date(dose.administeredAt).getTime() + dose.halfLifeHours * 10 * 60 * 60 * 1000;
+        const clearTime = new Date(dose.administeredAt).getTime() + (dose.halfLifeHours || 0) * 10 * 60 * 60 * 1000;
         if (clearTime > latestActive) latestActive = clearTime;
       }
       endTime = Math.min(latestActive, now + 30 * 24 * 60 * 60 * 1000);
@@ -75,6 +75,9 @@ async function refreshDashboard() {
 
   // Dashboard stats row
   renderDashboardStats(doses, summaries, now);
+
+  // Dose heatmap
+  renderDoseHeatmap(doses);
 
   // Dashboard cycles panel
   if (typeof renderDashboardCycles === 'function') {
@@ -349,6 +352,114 @@ function toggleChartPill(chartName, index, btn) {
 }
 
 window.toggleChartPill = toggleChartPill;
+
+// ═══════════════════════════════════════
+// DOSE ADHERENCE HEATMAP
+// ═══════════════════════════════════════
+
+function renderDoseHeatmap(doses) {
+  const container = document.getElementById('dose-heatmap');
+  if (!container) return;
+
+  // Build date → { count, compounds } map
+  const dayMap = {};
+  for (const dose of doses) {
+    const d = new Date(dose.administeredAt);
+    const key = d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+    if (!dayMap[key]) dayMap[key] = { count: 0, compounds: new Set() };
+    dayMap[key].count++;
+    dayMap[key].compounds.add(dose.compoundName);
+  }
+
+  // Start on the Sunday >= 52 weeks ago
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(today.getDate() - 364);
+  start.setDate(start.getDate() - start.getDay()); // snap to Sunday
+
+  // Build columns (weeks) and track month label positions
+  const weeks = [];
+  const monthLabels = []; // { col, label }
+  let cur = new Date(start);
+  let col = 0;
+
+  while (cur <= today) {
+    const week = [];
+    for (let dow = 0; dow < 7; dow++) {
+      if (cur > today) {
+        week.push(null); // future placeholder
+      } else {
+        const key = cur.getFullYear() + '-' +
+          String(cur.getMonth() + 1).padStart(2, '0') + '-' +
+          String(cur.getDate()).padStart(2, '0');
+        const data = dayMap[key];
+        // Track first occurrence of each month
+        if (cur.getDate() <= 7 && dow === 0) {
+          const lbl = cur.toLocaleDateString(undefined, { month: 'short' });
+          monthLabels.push({ col, label: lbl });
+        } else if (cur.getDate() <= 7 && dow <= cur.getDay() && col > 0) {
+          // Month started mid-week — mark this column
+          if (!monthLabels.length || monthLabels[monthLabels.length - 1].col !== col) {
+            const lbl = cur.toLocaleDateString(undefined, { month: 'short' });
+            monthLabels.push({ col, label: lbl });
+          }
+        }
+        week.push({ key, date: new Date(cur), count: data ? data.count : 0, compounds: data ? [...data.compounds] : [] });
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    weeks.push(week);
+    col++;
+  }
+
+  // Determine max count for scaling
+  const allCounts = Object.values(dayMap).map(d => d.count);
+  const maxCount = allCounts.length ? Math.max(...allCounts) : 1;
+
+  function levelFor(count) {
+    if (count === 0) return 0;
+    if (count <= Math.ceil(maxCount * 0.25)) return 1;
+    if (count <= Math.ceil(maxCount * 0.50)) return 2;
+    if (count <= Math.ceil(maxCount * 0.75)) return 3;
+    return 4;
+  }
+
+  // Month label row (positioned by column index)
+  const CELL = 13, GAP = 2, STEP = CELL + GAP;
+  const labelRowHtml = `<div class="heatmap-month-row" style="margin-left:22px">` +
+    monthLabels.map(m =>
+      `<span class="heatmap-month-label" style="left:${m.col * STEP}px">${m.label}</span>`
+    ).join('') + `</div>`;
+
+  // Day-of-week labels (only Mon, Wed, Fri)
+  const dowLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+  const dowHtml = dowLabels.map(l =>
+    `<div class="heatmap-dow-label">${l}</div>`
+  ).join('');
+
+  // Week columns
+  const colsHtml = weeks.map(week =>
+    `<div class="heatmap-col">${week.map(cell => {
+      if (!cell) return `<div class="heatmap-cell" data-level="0"></div>`;
+      const level = levelFor(cell.count);
+      const dateStr = cell.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+      const tip = cell.count === 0
+        ? `No doses — ${dateStr}`
+        : `${cell.count} dose${cell.count !== 1 ? 's' : ''} — ${dateStr}\n${cell.compounds.join(', ')}`;
+      return `<div class="heatmap-cell" data-level="${level}" title="${tip.replace(/"/g, '&quot;')}"></div>`;
+    }).join('')}</div>`
+  ).join('');
+
+  container.innerHTML = `
+    ${labelRowHtml}
+    <div class="heatmap-body">
+      <div class="heatmap-dow-labels">${dowHtml}</div>
+      <div class="heatmap-cols">${colsHtml}</div>
+    </div>`;
+}
 
 function cleanupDashboard() {
   if (dashboardRefreshTimer) {

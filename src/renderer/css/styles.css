@@ -594,6 +594,143 @@ body {
   bottom: 2px;
 }
 
+/* ═══════════════════════════════════════ */
+/* DOSE ADHERENCE HEATMAP                 */
+/* ═══════════════════════════════════════ */
+
+.heatmap-section {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+
+.heatmap-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.heatmap-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.heatmap-legend-label {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.heatmap-legend-cell {
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+}
+
+.dose-heatmap-wrap {
+  overflow: visible;
+}
+
+.heatmap-month-row {
+  position: relative;
+  height: 18px;
+  margin-bottom: 2px;
+  display: none;
+}
+
+.heatmap-month-label {
+  position: absolute;
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.heatmap-body {
+  display: flex;
+  gap: 4px;
+}
+
+.heatmap-dow-labels {
+  display: none;
+}
+
+.heatmap-dow-label {
+  height: 13px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 13px;
+  text-align: right;
+  min-width: 18px;
+}
+
+
+.heatmap-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+}
+
+.heatmap-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heatmap-cell {
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  cursor: default;
+  transition: opacity 0.1s;
+}
+
+.heatmap-cell:hover {
+  opacity: 0.75;
+}
+
+/* Level 0 = no doses */
+.heatmap-cell[data-level="0"],
+.heatmap-legend-cell[data-level="0"] {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+}
+
+/* Levels 1–4: green intensity */
+.heatmap-cell[data-level="1"],
+.heatmap-legend-cell[data-level="1"] {
+  background: rgba(0, 230, 118, 0.25);
+  border: none;
+}
+
+.heatmap-cell[data-level="2"],
+.heatmap-legend-cell[data-level="2"] {
+  background: rgba(0, 230, 118, 0.50);
+  border: none;
+}
+
+.heatmap-cell[data-level="3"],
+.heatmap-legend-cell[data-level="3"] {
+  background: rgba(0, 230, 118, 0.75);
+  border: none;
+}
+
+.heatmap-cell[data-level="4"],
+.heatmap-legend-cell[data-level="4"] {
+  background: #00e676;
+  border: none;
+}
+
 /* Active date filter badge in history */
 .history-date-filter {
   display: flex;
