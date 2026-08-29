@@ -36,49 +36,79 @@ body {
   color: var(--text-primary);
   overflow: hidden;
   height: 100vh;
+}
+
+/* ═══════════════════════════════════════ */
+/* APP SHELL                              */
+/* ═══════════════════════════════════════ */
+#app-shell {
   display: flex;
-  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* ═══════════════════════════════════════ */
-/* TITLE BAR (macOS hiddenInset)          */
-/* ═══════════════════════════════════════ */
-#titlebar {
-  -webkit-app-region: drag;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.titlebar-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  letter-spacing: 0.5px;
-}
-
-/* ═══════════════════════════════════════ */
-/* NAVIGATION                             */
+/* LEFT SIDEBAR NAVIGATION                */
 /* ═══════════════════════════════════════ */
 #main-nav {
   display: flex;
-  gap: 2px;
-  padding: 8px 16px;
+  flex-direction: column;
+  width: 220px;
   background: var(--bg-surface);
-  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   flex-shrink: 0;
+  overflow: hidden;
+  transition: width 220ms ease;
   -webkit-app-region: no-drag;
 }
 
-.nav-btn {
+#main-nav.collapsed {
+  width: 56px;
+}
+
+/* Sidebar header */
+.nav-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 10px;
+  padding: 0 12px;
+  height: 56px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.nav-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  background: rgba(67, 97, 238, 0.2);
+  color: var(--accent-primary);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  flex: 1;
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+
+#nav-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
   border: none;
   background: transparent;
   color: var(--text-secondary);
@@ -87,7 +117,81 @@ body {
   font-weight: 500;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: all var(--transition);
+  transition: background var(--transition), color var(--transition);
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  -webkit-app-region: no-drag;
+}
+
+#nav-toggle:hover {
+  background: var(--bg-surface-hover);
+  color: var(--text-primary);
+}
+
+#nav-toggle .icon-expand {
+  display: none;
+  flex-shrink: 0;
+}
+
+#nav-toggle .icon-collapse {
+  flex-shrink: 0;
+}
+
+#main-nav.collapsed #nav-toggle .icon-collapse {
+  display: none;
+}
+
+#main-nav.collapsed #nav-toggle .icon-expand {
+  display: block;
+}
+
+#main-nav.collapsed #nav-toggle {
+  justify-content: center;
+  padding: 9px 0;
+}
+
+.nav-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+#main-nav.collapsed .nav-title {
+  opacity: 0;
+  width: 0;
+}
+
+/* Nav items */
+.nav-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.nav-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 500;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .nav-btn:hover {
@@ -102,6 +206,22 @@ body {
 
 .nav-btn svg {
   flex-shrink: 0;
+}
+
+.nav-label {
+  overflow: hidden;
+  opacity: 1;
+  transition: opacity 150ms ease;
+}
+
+#main-nav.collapsed .nav-label {
+  opacity: 0;
+  width: 0;
+}
+
+#main-nav.collapsed .nav-btn {
+  justify-content: center;
+  padding: 9px 0;
 }
 
 /* ═══════════════════════════════════════ */
