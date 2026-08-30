@@ -2942,7 +2942,7 @@ export default function LogSheet() {
   return (
     <SheetShell title="Log a dose">
       <p className="text-sm text-muted-foreground">
-        The dose logger lands here in Plan 3.
+        The dose logger lands here in Plan 4.
       </p>
     </SheetShell>
   );
@@ -2957,7 +2957,7 @@ export default function LogPage() {
     <>
       <h1 className="text-2xl font-semibold">Log a dose</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        The dose logger lands here in Plan 3.
+        The dose logger lands here in Plan 4.
       </p>
     </>
   );
@@ -3545,4 +3545,4 @@ git push
 
 ## Next
 
-Plan 2 — PK core and compound library. It ports `decay.js` to `lib/pk/` with the test matrix from spec §10, seeds the `compounds` table by merging `COMPOUND_LIBRARY` and `LIBRARY_DATA`, and builds the Library tab.
+Plan 2 — PK core and compound library. Pages are built layout-neutral; Plan 3 inverts the shell to desktop-primary. It ports `decay.js` to `lib/pk/` with the test matrix from spec §10, seeds the `compounds` table by merging `COMPOUND_LIBRARY` and `LIBRARY_DATA`, and builds the Library tab.

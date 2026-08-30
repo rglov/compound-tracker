@@ -7,16 +7,30 @@ The spec covers roughly 25 features across six subsystems — too much for one
 implementation plan. It is split into six plans, each of which produces
 working, testable software on its own.
 
-| # | Plan | Delivers | Depends on |
-|---|---|---|---|
-| 1 | Foundation | Deployed, sign-in-able app: full Postgres schema, Clerk auth, tab-bar shell, PWA install, CI | — |
-| 2 | PK core + compound library | Ported decay math with tests; seeded compound library; browse, search, detail; custom compounds; blends | 1 |
-| 3 | Hero loop | Dose logger sheet, body map, dashboard (active-in-system, decay chart, adherence heatmap), history | 1, 2 |
-| 4 | Cycles | Cycle builder, schedule generation, adherence, reconciliation, review + archive | 1, 2, 3 |
-| 5 | Stock | Inventory, orders, supplies + usage rules, reconstitution calculator, batch tests + Blob upload | 1, 2 |
-| 6 | Migration + cutover | Legacy import script, bloodwork, settings, export/import, E2E hero-loop test, production cutover | all |
+| # | Plan | Delivers | Depends on | Status |
+|---|---|---|---|---|
+| 1 | Foundation | Deployed, sign-in-able app: full Postgres schema, Clerk auth, app shell, PWA install, CI | — | **Done** |
+| 2 | PK core + compound library | Ported decay math with tests; seeded compound library; browse, search, detail; custom compounds; blends | 1 | Next |
+| 3 | Layout | Invert the shell to desktop-primary: sidebar nav, full-width content, dialog-not-sheet logger; phone layout retained below `md` | 1, 2 | |
+| 4 | Dose logging + dashboard | Dose logger, body map, dashboard (active-in-system, decay chart, adherence heatmap), history | 1, 2, 3 | |
+| 5 | Cycles | Cycle builder, schedule generation, adherence, reconciliation, review + archive | 1, 2, 3 | |
+| 6 | Stock | Inventory, orders, supplies + usage rules, reconstitution calculator, batch tests + Blob upload | 1, 2, 3 | |
+| 7 | Migration + cutover | Legacy import script, bloodwork, settings, export/import, E2E test, production cutover | all | |
 
-Plans 3 and 5 are independent of each other and can run in parallel once 2 lands.
+Plans 4, 5 and 6 are independent of each other and can run in any order once 3 lands.
+
+## Design direction changed after Plan 1
+
+The spec originally specified phone-first, and Plan 1 shipped a phone-first
+shell: bottom tabs, a `max-w-lg` content column, a bottom-sheet dose logger.
+That direction is now **inverted — desktop is the primary target**, with the
+phone layout retained below `md`. Spec §1, §4, §7 and §10 are updated.
+
+Plan 3 does the inversion, deliberately scheduled *after* the compound
+library so the desktop layout is designed against real pages rather than
+placeholders. Plan 2's pages are therefore built **layout-neutral**:
+semantic structure, no `max-w-lg` assumptions, no bottom-tab-specific
+spacing, so Plan 3 is a layout change rather than a rewrite.
 
 ## Spec corrections folded into the plans
 

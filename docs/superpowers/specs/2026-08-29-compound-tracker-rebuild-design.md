@@ -7,20 +7,29 @@
 (CycleEntry, ScheduledDose, reconciliation) that the first draft omitted,
 plus the adherence heatmap, cycle tags, the `paused` status, and dose CSV
 export/import. Parity baseline is commit `058e0ed`.
+**Amended again (post-Plan-1):** design direction inverted from phone-first
+to **desktop-primary, responsive down to phone**. §1 and §4 are updated;
+the phone-first shell shipped in Plan 1 is inverted by Plan 3 (Layout),
+scheduled after the compound library lands. Sections written against the
+old direction are flagged inline.
 
 ---
 
 ## 1. Overview
 
-Rebuild the compound tracker as a phone-first, installable PWA hosted on Vercel with a Postgres-backed data model, replacing the current Electron + vanilla-JS + single-JSON-file implementation. Full feature parity with today's app is a v1 requirement; the rebuild is motivated by four concurrent problems in the current codebase: hard-to-change code (mega-files, tangled state), clunky/dated UI, an under-normalized data model, and a platform (Electron + web dual target, local JSON storage) that doesn't fit the actual usage pattern.
+Rebuild the compound tracker as a responsive web app hosted on Vercel with a Postgres-backed data model, replacing the current Electron + vanilla-JS + single-JSON-file implementation. It installs as a PWA on phones, but the desktop browser is the primary target. Full feature parity with today's app is a v1 requirement; the rebuild is motivated by four concurrent problems in the current codebase: hard-to-change code (mega-files, tangled state), clunky/dated UI, an under-normalized data model, and a platform (Electron + web dual target, local JSON storage) that doesn't fit the actual usage pattern.
 
 ### Primary use case
 
-**Daily dose logging on a phone, in the moment.** The user opens the app on their phone right before or right after administering a dose and needs to log it in the fewest possible taps. Everything else in the app (cycles, PK modeling, inventory, reconstitution, tests) exists to support this hero loop.
+**A full tracking workstation in the browser, primarily on desktop.** Planning cycles, reviewing decay curves against bloodwork, reconciling inventory against orders and batch tests — the work that benefits from screen area and multi-column layout.
+
+**Dose logging is the most frequent action, and happens on a phone.** The user opens the app right before or right after administering a dose and logs it in as few taps as possible. It remains the single most-exercised path in the app, and the phone layout is designed around it — but it is no longer the constraint every other screen is designed against.
 
 ### Design direction
 
 Apple Health / clinical calm: muted palette, generous whitespace, big-number displays, ring/line charts as focal points. Reads as a trustworthy tracking tool, not a consumer wellness app.
+
+**Desktop-primary, responsive down.** Layouts are designed at desktop width — persistent sidebar navigation, multi-column content, tables that use the space — and adapt to phone, where navigation collapses to bottom tabs and the dose logger becomes a bottom sheet. This reverses the original phone-first direction; see the amendment note below.
 
 ### Non-goals for v1
 
@@ -254,9 +263,30 @@ Starts with `enabledInjectionSites`.
 
 ## 4. App structure & routing
 
-### Bottom-tab navigation (phone-first)
+### Navigation
 
-5 tabs, with the daily-logging action promoted to a center primary button:
+The same five destinations in both layouts. Only the chrome changes.
+
+**Desktop (`md` and up) — persistent sidebar, primary target:**
+
+```
+┌────────────┬────────────────────────────────────────┐
+│ ▣ Tracker  │                                        │
+│            │                                        │
+│ Home       │        (page content, full width,      │
+│ Cycles     │         multi-column where useful)     │
+│ Library    │                                        │
+│ Stock      │                                        │
+│            │                                        │
+│ [+ Log]    │                                        │
+│ ───────    │                                        │
+│ ⚙ Profile  │                                        │
+└────────────┴────────────────────────────────────────┘
+```
+
+Collapsible to an icon rail, as in the legacy app. Content is not width-capped; lists become tables and detail views become multi-column.
+
+**Phone (below `md`) — bottom tabs**, with the logging action promoted to a centre primary button:
 
 ```
 ┌─────────────────────────────────────┐
@@ -270,7 +300,7 @@ Starts with `enabledInjectionSites`.
 
 - **Home** — dashboard: "active in your system" list, current-cycle context, today's logged doses, decay chart, 52-week adherence heatmap.
 - **Cycles** — sectioned list (active/paused first, then planned, completed, archived). Each card shows status, compound pills, tags, and an adherence bar. Tap → detail (schedule with take/skip actions, dose list, chart, review form).
-- **[+ Log]** — center action, opens the dose logger as a bottom-sheet modal (parallel intercepted route) on phone / full page on desktop.
+- **[+ Log]** — opens the dose logger as an intercepted modal: a centred dialog on desktop, a bottom sheet on phone. Deep-linkable at `/log`, which renders as a full page.
 - **Library** — searchable list of compounds + blends. Detail views for each. Custom-compound and blend builders live here.
 - **Stock** — logistics cluster: inventory, orders, supplies, reconstitution calculator, batch tests.
 
@@ -374,7 +404,7 @@ Every current-app feature has a defined new home:
 | Dashboard (`dashboard.js`) | `app/(authed)/page.tsx` | Server Component + Cache Components + client chart |
 | Adherence heatmap (`dashboard.js`) | `components/adherence-heatmap.tsx` | 52-week grid; server-aggregated day counts, client tooltips |
 | Dose logger (`dose-logger.js`) | `app/(authed)/@sheet/log/page.tsx` | Server Action + `useOptimistic`; blend expansion; optional inventory-item bind; optional cycle link that fills `Dose.cycleId` directly instead of relying on ±24h matching |
-| Sidebar nav (`index.html`) | — | Does not translate; replaced by the phone-first bottom tab bar in §4 |
+| Sidebar nav (`index.html`) | `components/sidebar-nav.tsx` | Carries over as the desktop navigation, including the collapse-to-icons behaviour; bottom tabs replace it below `md` |
 | Body map (`bodymap.js`) | `components/body-map.tsx` | SVG, filtered by `enabledInjectionSites` |
 | Library browse (`library.js`) | `app/(authed)/library/page.tsx` | LIBRARY_DATA becomes a seed script; Compound rows with `source='library'` |
 | Compound detail (`compound-detail.js`) | `app/(authed)/library/[compoundId]/page.tsx` | Adds "your tested batches" section |
@@ -489,6 +519,7 @@ No downtime window, no user coordination, no rollback drama — worst case, the 
 
 ### Manual verification checklist (PR template)
 
+- Exercise the changed screen at desktop width: sidebar visible, content uses the full width, no phone chrome leaking in
 - Log a dose on phone viewport, one-handed
 - Confirm PWA installs to home screen and launches standalone
 - Confirm current-cycle badge on dashboard is correct
