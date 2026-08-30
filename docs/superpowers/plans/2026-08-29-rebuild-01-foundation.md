@@ -2556,7 +2556,24 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 // Everything except the sign-in flow and static assets requires a session.
 const isPublicRoute = createRouteMatcher(['/sign-in(.*)', '/manifest.webmanifest']);
 
+/**
+ * Anything with a file extension is a static asset, not an app route.
+ *
+ * REQUIRED — do not remove. proxyConfig's matcher below is meant to
+ * exclude these, but it is not reliably applied in production: every
+ * icon, /sw.js and even /next.svg came back 404 with
+ * `x-clerk-auth-reason: protect-rewrite`, which silently breaks PWA
+ * install. Only routes listed in isPublicRoute reached the origin at
+ * all. Checking here keeps correctness independent of the matcher, and
+ * fails safe — app routes have no extension.
+ *
+ * The dev server serves public/ before the proxy runs, so `pnpm dev`
+ * will NOT reproduce this. Verify against `pnpm build && pnpm start`.
+ */
+const STATIC_ASSET = /\.[^/]+$/;
+
 export default clerkMiddleware(async (auth, request) => {
+  if (STATIC_ASSET.test(request.nextUrl.pathname)) return;
   if (!isPublicRoute(request)) {
     await auth.protect();
   }
@@ -3277,7 +3294,9 @@ import { ServiceWorker } from '@/components/service-worker';
         </body>
 ```
 
-- [ ] **Step 10: Verify the manifest serves**
+- [ ] **Step 10: Verify the manifest and every icon serves**
+
+Against a production build, not `pnpm dev` — the dev server serves `public/` before the proxy runs and will hide a proxy misconfiguration:
 
 ```bash
 pnpm build && pnpm start
@@ -3286,10 +3305,14 @@ pnpm build && pnpm start
 In another terminal:
 
 ```bash
-curl -s localhost:3000/manifest.webmanifest | head -20
+for p in /manifest.webmanifest /icon-192.png /icon-512.png \
+         /icon-maskable-512.png /apple-touch-icon.png /sw.js; do
+  printf "%-28s " "$p"
+  curl -s -o /dev/null -w "status=%{http_code} type=%{content_type}\n" "localhost:3000$p"
+done
 ```
 
-Expected: JSON with `"display":"standalone"` and three icons. Stop the server.
+Expected: all six 200, with `image/png` on the icons and `application/manifest+json` on the manifest. **A 404 here means the proxy is rewriting static assets** — see the `STATIC_ASSET` guard in Task 8 Step 10. Stop the server.
 
 - [ ] **Step 11: Commit**
 
