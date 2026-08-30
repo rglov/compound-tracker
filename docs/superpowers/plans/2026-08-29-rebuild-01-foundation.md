@@ -1841,7 +1841,7 @@ describe('stock schema', () => {
       .insert(orders)
       .values({
         userId: USER,
-        supplier: 'JEEP',
+        supplier: 'Example Labs',
         status: 'delivered',
         orderedAt: new Date('2026-03-06T09:00:00Z'),
         deliveredAt: new Date('2026-03-06T09:58:56Z'),
@@ -1868,7 +1868,7 @@ describe('stock schema', () => {
   it('keeps inventory when its order is deleted', async () => {
     const [order] = await db
       .insert(orders)
-      .values({ userId: USER, supplier: 'JEEP', status: 'delivered' })
+      .values({ userId: USER, supplier: 'Example Labs', status: 'delivered' })
       .returning();
 
     const [item] = await db
