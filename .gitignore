@@ -2,3 +2,8 @@ node_modules/
 out/
 .claude/
 *.png
+
+# Personal health data — compounds, suppliers, costs. This repo is
+# public; the file must never be tracked here. The rebuild reads its own
+# copy from docs/legacy-import-snapshot.json in compound-tracker-web.
+data/
